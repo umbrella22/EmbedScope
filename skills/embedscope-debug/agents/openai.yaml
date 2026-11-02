@@ -1,0 +1,4 @@
+interface:
+  display_name: "EmbedScope 调试"
+  short_description: "Inspect embedded devices with EmbedScope"
+  default_prompt: "使用 $embedscope-debug 连接设备并采集日志、指标和截图，定位问题。"

@@ -1,0 +1,9 @@
+[package]
+name = "escope-agent"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Allocation-free EmbedScope device agent"
+
+[dependencies]
+escope-protocol = { path = "../escope-protocol", version = "0.1.0" }

@@ -1,0 +1,15 @@
+[package]
+name = "escope-lvgl"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Host-provided LVGL access bridge for EmbedScope"
+
+[dependencies]
+escope-protocol.workspace = true
+rs_lvgl = { version = "0.3.1", default-features = false, features = ["alloc", "unsafe_no_autoinit"], optional = true }
+
+[features]
+default = []
+native = ["dep:rs_lvgl"]

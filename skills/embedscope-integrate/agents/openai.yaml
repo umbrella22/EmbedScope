@@ -1,0 +1,4 @@
+interface:
+  display_name: "EmbedScope 接入"
+  short_description: "Integrate the EmbedScope Agent into firmware"
+  default_prompt: "使用 $embedscope-integrate 将 EmbedScope 接入当前嵌入式工程。"

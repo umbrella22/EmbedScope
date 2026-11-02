@@ -1,0 +1,13 @@
+[workspace]
+
+[package]
+name = "escope-c-example"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+escope-c-api = { path = "../../crates/escope-c-api" }

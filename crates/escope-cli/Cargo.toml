@@ -1,0 +1,20 @@
+[package]
+name = "escope-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "EmbedScope embedded diagnostics and control CLI"
+
+[[bin]]
+name = "escope"
+path = "src/main.rs"
+
+[dependencies]
+escope-host.workspace = true
+escope-protocol.workspace = true
+tokio.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true

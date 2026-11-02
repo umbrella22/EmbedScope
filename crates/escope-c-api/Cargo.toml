@@ -1,0 +1,14 @@
+[package]
+name = "escope-c-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Allocation-free C ABI for the EmbedScope device Agent"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+escope-protocol.workspace = true
+escope-agent.workspace = true
