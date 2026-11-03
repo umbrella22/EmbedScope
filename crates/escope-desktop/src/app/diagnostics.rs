@@ -32,13 +32,27 @@ impl Inspector {
                 }
                 ui.checkbox(&mut self.follow_logs, tr!(self.i18n, "follow"))
                     .on_hover_text(tr!(self.i18n, "follow-hint"));
+                let level_width = (1..=5)
+                    .map(|value| {
+                        ui.painter()
+                            .layout_no_wrap(
+                                level_filter(&self.i18n, value),
+                                egui::FontId::proportional(13.0),
+                                p.text,
+                            )
+                            .size()
+                            .x
+                    })
+                    .fold(0.0_f32, f32::max)
+                    + 52.0;
                 egui::ComboBox::from_id_salt(if compact {
                     "drawer-level"
                 } else {
                     "page-level"
                 })
                 .selected_text(level_filter(&self.i18n, self.log_level))
-                .width(90.0)
+                .width(level_width)
+                .popup_style(theme::menu_style.into())
                 .show_ui(ui, |ui| {
                     for value in (1..=5).rev() {
                         ui.selectable_value(
@@ -48,12 +62,11 @@ impl Inspector {
                         );
                     }
                 });
-                let width = (ui.available_width() - 12.0).clamp(100.0, 240.0);
+                let width = (ui.available_width() - 24.0).clamp(100.0, 240.0);
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.log_query)
+                    theme::text_field(&mut self.log_query)
                         .desired_width(width)
-                        .hint_text(tr!(self.i18n, "log-filter"))
-                        .margin(egui::vec2(8.0, 7.0)),
+                        .hint_text(tr!(self.i18n, "log-filter")),
                 );
             });
         });
@@ -406,7 +419,8 @@ fn metric_tile(
             ui.set_width(ui.available_width());
             ui.label(RichText::new(label).size(12.0).color(p.muted));
             ui.add_space(8.0);
-            ui.label(RichText::new(value).monospace().size(22.0));
+            ui.add(egui::Label::new(RichText::new(&value).monospace().size(22.0)).truncate())
+                .on_hover_text(value);
             ui.add_space(4.0);
             ui.label(RichText::new(caption).size(11.0).color(p.muted));
         });

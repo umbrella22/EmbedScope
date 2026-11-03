@@ -10,7 +10,7 @@ impl Inspector {
             .show(root, |ui| {
                 let (logo, _) =
                     ui.allocate_exact_size(egui::vec2(40.0, 48.0), egui::Sense::hover());
-                icons::logo(ui.painter(), logo.center(), 30.0, p.accent);
+                crate::brand::paint(ui.painter(), logo.center(), 30.0, p.accent);
                 ui.add_space(16.0);
                 for (view, icon, label) in [
                     (
@@ -61,30 +61,47 @@ impl Inspector {
     fn language_menu(&mut self, ui: &mut egui::Ui) {
         let response =
             theme::icon_button(ui, Icon::Language, tr!(self.i18n, "language-menu"), false);
-        egui::Popup::menu(&response).show(|ui| {
-            ui.set_min_width(196.0);
-            ui.strong(tr!(self.i18n, "language-title"));
-            ui.separator();
-            let mut preference = self.i18n.preference();
-            ui.selectable_value(
-                &mut preference,
-                Preference::System,
-                tr!(self.i18n, "language-system"),
-            );
-            for (index, locale) in LOCALES.iter().enumerate() {
-                ui.selectable_value(&mut preference, Preference::Language(index), locale.name);
-            }
-            ui.separator();
-            ui.weak(tr!(
-                self.i18n,
-                "language-current",
-                language = self.i18n.locale().name
-            ));
-            if preference != self.i18n.preference() {
-                self.i18n.set_preference(preference);
-                ui.ctx().request_repaint();
-            }
-        });
+        egui::Popup::menu(&response)
+            .style(theme::menu_style)
+            .show(|ui| {
+                ui.set_min_width(216.0);
+                egui::Frame::new()
+                    .inner_margin(egui::Margin::symmetric(12, 6))
+                    .show(ui, |ui| {
+                        ui.strong(tr!(self.i18n, "language-title"));
+                    });
+                ui.separator();
+                let mut preference = self.i18n.preference();
+                ui.selectable_value(
+                    &mut preference,
+                    Preference::System,
+                    tr!(self.i18n, "language-system"),
+                );
+                for (index, locale) in LOCALES.iter().enumerate() {
+                    ui.selectable_value(&mut preference, Preference::Language(index), locale.name);
+                }
+                ui.separator();
+                egui::Frame::new()
+                    .inner_margin(egui::Margin::symmetric(12, 6))
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::Label::new(
+                                RichText::new(tr!(
+                                    self.i18n,
+                                    "language-current",
+                                    language = self.i18n.locale().name
+                                ))
+                                .small()
+                                .weak(),
+                            )
+                            .wrap(),
+                        );
+                    });
+                if preference != self.i18n.preference() {
+                    self.i18n.set_preference(preference);
+                    ui.ctx().request_repaint();
+                }
+            });
     }
 
     pub(super) fn header(&mut self, root: &mut egui::Ui) {
@@ -136,10 +153,9 @@ impl Inspector {
                         let width = (ui.available_width() - 24.0).clamp(150.0, 320.0);
                         ui.add_enabled(
                             !connected && !self.busy,
-                            egui::TextEdit::singleline(&mut self.endpoint)
+                            theme::text_field(&mut self.endpoint)
                                 .font(egui::TextStyle::Monospace)
                                 .desired_width(width)
-                                .margin(egui::vec2(10.0, 8.0))
                                 .hint_text(tr!(self.i18n, "endpoint-hint")),
                         );
                     });
@@ -236,6 +252,8 @@ impl Inspector {
                     .inner_margin(egui::Margin::symmetric(16, 5)),
             )
             .show(root, |ui| {
+                // This is a read-only status line inside a 30-point panel, not a control row.
+                ui.spacing_mut().interact_size.y = 18.0;
                 ui.horizontal(|ui| {
                     let (dot, _) =
                         ui.allocate_exact_size(egui::vec2(7.0, 14.0), egui::Sense::hover());

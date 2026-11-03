@@ -1,6 +1,9 @@
 use crate::icons::{self, Icon};
 use eframe::egui::{self, Color32, FontId, RichText, Stroke};
 
+pub const CONTROL_HEIGHT: f32 = 40.0;
+pub const CONTROL_INSET: f32 = 12.0;
+
 #[derive(Clone, Copy)]
 pub struct Palette {
     pub background: Color32,
@@ -98,9 +101,11 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
     v.widgets.active.bg_fill = p.accent_bg;
     v.widgets.active.bg_stroke.color = p.accent;
     style.spacing.item_spacing = egui::vec2(8.0, 8.0);
-    style.spacing.button_padding = egui::vec2(10.0, 7.0);
-    style.spacing.interact_size = egui::vec2(32.0, 32.0);
+    style.spacing.button_padding = egui::vec2(CONTROL_INSET, 9.0);
+    style.spacing.interact_size = egui::Vec2::splat(CONTROL_HEIGHT);
     style.spacing.window_margin = egui::Margin::same(16);
+    style.spacing.menu_margin = egui::Margin::same(8);
+    style.visuals.menu_corner_radius = egui::CornerRadius::same(14);
     style
         .text_styles
         .insert(egui::TextStyle::Body, FontId::proportional(13.0));
@@ -121,6 +126,21 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
 
 pub fn panel(p: Palette) -> egui::Frame {
     egui::Frame::new().fill(p.panel).inner_margin(14)
+}
+
+/// egui applies its own compact menu style after the application theme.
+/// Restore control insets here for both Popup menus and ComboBox popups.
+pub fn menu_style(style: &mut egui::Style) {
+    egui::containers::menu::menu_style(style);
+    style.spacing.button_padding = egui::vec2(CONTROL_INSET, 9.0);
+    style.spacing.interact_size = egui::Vec2::splat(CONTROL_HEIGHT);
+    style.spacing.item_spacing = egui::vec2(4.0, 4.0);
+}
+
+pub fn text_field(text: &mut String) -> egui::TextEdit<'_> {
+    egui::TextEdit::singleline(text)
+        .margin(egui::vec2(CONTROL_INSET, 10.0))
+        .min_size(egui::vec2(0.0, CONTROL_HEIGHT))
 }
 
 #[derive(Clone, Copy)]
@@ -145,11 +165,11 @@ pub fn button(
         Color32::PLACEHOLDER,
     );
     let (rect, response) = ui.allocate_exact_size(
-        egui::vec2(galley.size().x + 46.0, 32.0),
+        egui::vec2(galley.size().x + 46.0, CONTROL_HEIGHT),
         egui::Sense::click(),
     );
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), text));
-    let (fill, foreground) = match kind {
+    let (mut fill, foreground) = match kind {
         ButtonStyle::Primary => (
             p.accent,
             if ui.visuals().dark_mode {
@@ -169,6 +189,15 @@ pub fn button(
             p.muted,
         ),
     };
+    if response.is_pointer_button_down_on() {
+        fill = if matches!(kind, ButtonStyle::Quiet) {
+            p.border
+        } else {
+            fill.gamma_multiply(0.82)
+        };
+    } else if response.hovered() && !matches!(kind, ButtonStyle::Quiet) {
+        fill = fill.lerp_to_gamma(p.text, 0.08);
+    }
     let alpha = if ui.is_enabled() { 1.0 } else { 0.38 };
     ui.painter()
         .rect_filled(rect, 6, fill.gamma_multiply(alpha));

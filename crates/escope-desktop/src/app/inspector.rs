@@ -35,10 +35,9 @@ impl Inspector {
                 });
                 ui.add_space(8.0);
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.tree_query)
+                    theme::text_field(&mut self.tree_query)
                         .desired_width(f32::INFINITY)
-                        .hint_text(tr!(self.i18n, "tree-filter"))
-                        .margin(egui::vec2(8.0, 8.0)),
+                        .hint_text(tr!(self.i18n, "tree-filter")),
                 );
                 ui.add_space(8.0);
                 let query = self.tree_query.trim().to_lowercase();
@@ -59,7 +58,11 @@ impl Inspector {
                             let (rect, response) = ui.allocate_exact_size(
                                 egui::vec2(
                                     ui.available_width(),
-                                    if node.name.is_empty() { 34.0 } else { 48.0 },
+                                    if node.name.is_empty() {
+                                        theme::CONTROL_HEIGHT
+                                    } else {
+                                        48.0
+                                    },
                                 ),
                                 egui::Sense::click(),
                             );
@@ -88,10 +91,17 @@ impl Inspector {
                                     p.accent,
                                 );
                             }
+                            let id = format!("#{}", node.id);
+                            let id_width = ui
+                                .painter()
+                                .layout_no_wrap(id.clone(), FontId::monospace(10.0), p.muted)
+                                .size()
+                                .x;
                             let depth = self.depths.get(&node.id).copied().unwrap_or(0);
-                            let indent = (depth as f32 * 12.0).min((rect.width() - 100.0).max(0.0));
+                            let indent = (depth as f32 * 12.0)
+                                .min((rect.width() - id_width - 80.0).max(0.0));
                             let left = rect.left() + 10.0 + indent;
-                            let top = rect.top() + if node.name.is_empty() { 9.0 } else { 7.0 };
+                            let top = rect.top() + if node.name.is_empty() { 12.0 } else { 7.0 };
                             icons::paint(
                                 ui.painter(),
                                 egui::Rect::from_min_size(
@@ -103,7 +113,7 @@ impl Inspector {
                             );
                             let text_rect = egui::Rect::from_min_max(
                                 egui::pos2(left + 22.0, top),
-                                egui::pos2(rect.right() - 38.0, rect.bottom()),
+                                egui::pos2(rect.right() - id_width - 19.0, rect.bottom()),
                             );
                             let painter = ui
                                 .painter()
@@ -125,9 +135,9 @@ impl Inspector {
                                 );
                             }
                             ui.painter().text(
-                                egui::pos2(rect.right() - 7.0, top + 1.0),
+                                egui::pos2(rect.right() - 12.0, top + 1.0),
                                 egui::Align2::RIGHT_TOP,
-                                format!("#{}", node.id),
+                                id,
                                 FontId::monospace(10.0),
                                 p.muted,
                             );
@@ -262,11 +272,27 @@ impl Inspector {
     }
 
     fn display_contents(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, p: Palette) {
+        // Let the actual export row and wrapped status determine their own height.
+        // A fixed canvas reservation clips this area when controls or translations grow.
+        egui::Panel::bottom("capture-export")
+            .default_size(0.0)
+            .min_size(0.0)
+            .frame(egui::Frame::new().inner_margin(egui::Margin {
+                top: 8,
+                ..Default::default()
+            }))
+            .show(ui, |ui| self.export_controls(ui, ctx, p));
         self.display_modes(ui, p);
         ui.add_space(8.0);
+        let metadata_height = ui
+            .spacing()
+            .interact_size
+            .y
+            .max(ui.text_style_height(&egui::TextStyle::Small));
         let stage_size = egui::vec2(
             ui.available_width(),
-            (ui.available_height() - 104.0).max(40.0),
+            (ui.available_height() - metadata_height - ui.spacing().item_spacing.y * 2.0 - 2.0)
+                .max(40.0),
         );
         let (canvas, _) = ui.allocate_exact_size(stage_size, egui::Sense::hover());
         dotted_canvas(ui, canvas, p);
@@ -281,8 +307,6 @@ impl Inspector {
                     .color(p.muted),
             );
         }
-        ui.add_space(6.0);
-        self.export_controls(ui, ctx, p);
     }
 
     fn display_modes(&mut self, ui: &mut egui::Ui, p: Palette) {
@@ -349,6 +373,19 @@ impl Inspector {
         let response = ui.place(
             image_rect,
             egui::Image::new((texture, source * scale)).sense(egui::Sense::click()),
+        );
+        painter.rect_stroke(
+            image_rect,
+            0,
+            Stroke::new(
+                1.0_f32,
+                if self.dark {
+                    egui::Color32::from_white_alpha(26)
+                } else {
+                    egui::Color32::from_black_alpha(26)
+                },
+            ),
+            egui::StrokeKind::Inside,
         );
         if let Some(node) = self
             .nodes
@@ -439,14 +476,13 @@ impl Inspector {
             let width = (ui.available_width()
                 - theme::button_width(ui, &label)
                 - ui.spacing().item_spacing.x
-                - 16.0)
+                - 24.0)
                 .max(40.0);
             ui.add(
-                egui::TextEdit::singleline(&mut self.save_path)
+                theme::text_field(&mut self.save_path)
                     .desired_width(width)
                     .font(egui::TextStyle::Monospace)
-                    .hint_text(tr!(self.i18n, "png-path-hint"))
-                    .margin(egui::vec2(8.0, 8.0)),
+                    .hint_text(tr!(self.i18n, "png-path-hint")),
             )
             .on_hover_text(&self.save_path);
             let enabled = self.capture.is_some() && !self.png_save.is_saving();

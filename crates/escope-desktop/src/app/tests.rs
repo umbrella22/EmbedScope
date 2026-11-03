@@ -2,6 +2,8 @@ use super::*;
 use eframe::Storage as _;
 use escope_host::protocol::{capability, CaptureMeta, PixelFormat};
 
+mod layout;
+
 fn fixture() -> (
     Inspector,
     mpsc::Sender<Update>,
@@ -194,7 +196,14 @@ fn selection_and_input_use_the_centered_scaled_image_at_both_window_sizes() {
             app.inject = true;
             click(&mut app);
             assert!(matches!(commands.try_recv(), Ok(Command::Tap(80, 100))));
-            for key in ["disconnect", "refresh", "live", "save-png"] {
+            for key in [
+                "disconnect",
+                "refresh",
+                "live",
+                "save-png",
+                "png-idle",
+                "connected",
+            ] {
                 let label = app.i18n.text(key);
                 let (_, bounds, clip) = text_rects(&output)
                     .into_iter()

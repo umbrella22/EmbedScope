@@ -1,4 +1,5 @@
 mod app;
+mod brand;
 mod fonts;
 mod i18n;
 mod icons;
@@ -15,6 +16,7 @@ fn main() -> eframe::Result {
         eframe::NativeOptions {
             viewport: eframe::egui::ViewportBuilder::default()
                 .with_app_id("io.github.umbrella22.embedscope.inspector")
+                .with_icon(brand::window_icon())
                 .with_inner_size([1380.0, 900.0])
                 .with_min_inner_size([900.0, 620.0]),
             ..Default::default()

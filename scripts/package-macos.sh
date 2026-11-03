@@ -3,7 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 cargo build -p escope-desktop
 bundle="target/EmbedScope Inspector.app"
-mkdir -p "$bundle/Contents/MacOS"
+mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
+cp crates/escope-desktop/assets/brand/app-icon.icns "$bundle/Contents/Resources/EmbedScope.icns"
 # Replace the inode so macOS does not reuse a cached signature for an older build.
 staged_executable=$(mktemp "$bundle/Contents/MacOS/.escope-desktop.XXXXXX")
 trap 'rm -f "$staged_executable"' EXIT
@@ -17,6 +18,7 @@ cat > "$bundle/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>escope-desktop</string>
 <key>CFBundleIdentifier</key><string>dev.embedscope.inspector</string>
 <key>CFBundleName</key><string>EmbedScope Inspector</string>
+<key>CFBundleIconFile</key><string>EmbedScope.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>0.1.0</string>
 <key>NSHighResolutionCapable</key><true/>

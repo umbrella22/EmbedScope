@@ -21,6 +21,21 @@ cargo test -p escope-desktop
 | `src/png_save.rs` | Background export of a retained capture |
 | `src/fonts.rs` | Optional installed CJK font fallback |
 | `src/theme.rs`, `src/icons.rs` | Shared native visual primitives |
+| `src/brand.rs`, `assets/brand/` | Embedded brand mark, editable SVG and platform icon assets |
+
+## Control layout
+
+`theme::menu_style` restores menu padding after egui applies its compact popup
+defaults. Apply it to both `Popup::menu` and `ComboBox` popups. Shared text fields
+use `theme::text_field`; icon/text buttons and selectable menu rows use a
+40-point control height with 12-point horizontal insets. Read-only status rows
+keep their own compact spacing.
+
+The capture export panel measures its controls and wrapped status independently
+of the display canvas. Avoid a fixed footer reservation when changing this
+area. Layout regressions in `src/app/tests/layout.rs` cover translated controls,
+menu insets, full-row pointer selection and long object IDs; capture geometry
+tests also verify that export/status labels stay inside their clips.
 
 ## Language selection
 

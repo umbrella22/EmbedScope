@@ -1,5 +1,5 @@
 //! Resolution-independent line icons in a shared 24-unit coordinate system.
-use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
+use eframe::egui::{self, Color32, Rect, Stroke};
 
 #[derive(Clone, Copy)]
 pub enum Icon {
@@ -201,30 +201,5 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
             line(&[[12.0, 8.0], [17.0, 8.0]]);
             line(&[[12.0, 12.0], [17.0, 12.0]]);
         }
-    }
-}
-
-pub fn logo(painter: &egui::Painter, center: Pos2, size: f32, color: Color32) {
-    let rect = Rect::from_center_size(center, egui::Vec2::splat(size));
-    painter.rect_stroke(
-        rect,
-        7,
-        Stroke::new(1.5_f32, color.gamma_multiply(0.5)),
-        egui::StrokeKind::Inside,
-    );
-    let at = |x, y| rect.min + egui::vec2(x, y) * size;
-    for segment in [
-        [[0.67, 0.28], [0.32, 0.28]],
-        [[0.32, 0.28], [0.32, 0.72]],
-        [[0.32, 0.50], [0.62, 0.50]],
-        [[0.32, 0.72], [0.67, 0.72]],
-    ] {
-        painter.line_segment(
-            [
-                at(segment[0][0], segment[0][1]),
-                at(segment[1][0], segment[1][1]),
-            ],
-            Stroke::new(1.8_f32, color),
-        );
     }
 }

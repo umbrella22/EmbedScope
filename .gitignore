@@ -1,5 +1,6 @@
 /target/
 .DS_Store
 *.png
+!/crates/escope-desktop/assets/brand/*.png
 /artifacts/
 /docs/
