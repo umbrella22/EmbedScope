@@ -253,11 +253,28 @@ class DistributionTests(unittest.TestCase):
             context.target = root
             cache = root / "windows-smoke-mesa"
             cache.mkdir()
-            (cache / f"mesa3d-{WINDOWS_SMOKE_MESA['version']}-release-msvc.7z").write_bytes(b"changed")
+            (cache / WINDOWS_SMOKE_MESA["archive"]).write_bytes(b"changed")
             with patch("release_support.binaries.sys.platform", "win32"), patch.object(context, "run") as run:
                 with self.assertRaisesRegex(RuntimeError, "cached checksum differs"):
                     prepare_windows_smoke_mesa(context, root / "unpacked/escope-desktop.exe")
                 run.assert_not_called()
+
+    def test_windows_smoke_mesa_missing_dll_stops_before_ui_launch(self):
+        data = b"checksum-pinned but incomplete Mesa fixture"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = Context(VERSION, root / "dist", "binaries")
+            context.target = root
+            context.env["EMBEDSCOPE_WINDOWS_SMOKE_MESA"] = "1"
+            shipped = root / "inspector-unpacked/escope-desktop.exe"
+            shipped.parent.mkdir()
+            with patch("release_support.binaries.sys.platform", "win32"), \
+                    patch("release_support.binaries.urllib.request.urlopen", return_value=io.BytesIO(data)), \
+                    patch.dict(WINDOWS_SMOKE_MESA, {"sha256": sha256(data)}), \
+                    patch.object(context, "run") as run:
+                with self.assertRaisesRegex(RuntimeError, "Mesa DLL is missing"):
+                    smoke_inspector(context, shipped, "x86_64-pc-windows-msvc")
+            self.assertEqual([call.args[0] for call in run.call_args_list], ["inspector-smoke-mesa-extract"])
 
     def test_failed_windows_ui_smoke_still_fails_and_restores_environment(self):
         with tempfile.TemporaryDirectory() as directory:

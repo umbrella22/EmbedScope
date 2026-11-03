@@ -17,8 +17,11 @@ from .appimage import appimage
 TARGETS = {"aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"}
 WINDOWS_SMOKE_MESA = {
     "version": "26.2.6",
-    "url": "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.6/mesa3d-26.2.6-release-msvc.7z",
-    "sha256": "b2e00615feaba45942343c265cc8c5f576142ca682c1ac6661922d4b72492877",
+    # This x64 WGL build needs only Windows system DLLs and its Gallium DLL.
+    # WGL's C ABI also supports an Inspector built with the MSVC Rust target.
+    "archive": "mesa3d-26.2.6-release-mingw.7z",
+    "url": "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.6/mesa3d-26.2.6-release-mingw.7z",
+    "sha256": "da0f71d9181b672c1918f3c342f11118c687f6059a46b16502845160733cc388",
     "dlls": ("opengl32.dll", "libgallium_wgl.dll"),
 }
 
@@ -80,7 +83,7 @@ def prepare_windows_smoke_mesa(context, shipped):
         raise RuntimeError("Windows smoke Mesa must be prepared on Windows")
     cache = context.target / "windows-smoke-mesa"
     cache.mkdir(parents=True, exist_ok=True)
-    archive = cache / f"mesa3d-{WINDOWS_SMOKE_MESA['version']}-release-msvc.7z"
+    archive = cache / WINDOWS_SMOKE_MESA["archive"]
     if not archive.exists():
         request = urllib.request.Request(WINDOWS_SMOKE_MESA["url"], headers={"User-Agent": "EmbedScope release"})
         with urllib.request.urlopen(request, timeout=60) as response:
