@@ -52,7 +52,13 @@ impl Palette {
 
 pub fn apply(ctx: &egui::Context, dark: bool) {
     let p = Palette::new(dark);
-    let mut style = (*ctx.style()).clone();
+    let theme = if dark {
+        egui::Theme::Dark
+    } else {
+        egui::Theme::Light
+    };
+    ctx.set_theme(theme);
+    let mut style = (*ctx.style_of(theme)).clone();
     style.visuals = if dark {
         egui::Visuals::dark()
     } else {
@@ -110,7 +116,7 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
     style
         .text_styles
         .insert(egui::TextStyle::Heading, FontId::proportional(22.0));
-    ctx.set_style(style);
+    ctx.set_style_of(theme, style);
 }
 
 pub fn panel(p: Palette) -> egui::Frame {
@@ -125,7 +131,13 @@ pub enum ButtonStyle {
     Warning,
 }
 
-pub fn button(ui: &mut egui::Ui, icon: Icon, text: &str, kind: ButtonStyle) -> egui::Response {
+pub fn button(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    text: impl AsRef<str>,
+    kind: ButtonStyle,
+) -> egui::Response {
+    let text = text.as_ref();
     let p = Palette::new(ui.visuals().dark_mode);
     let galley = ui.painter().layout_no_wrap(
         text.into(),
@@ -136,8 +148,7 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, text: &str, kind: ButtonStyle) -> e
         egui::vec2(galley.size().x + 46.0, 32.0),
         egui::Sense::click(),
     );
-    response
-        .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), text));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), text));
     let (fill, foreground) = match kind {
         ButtonStyle::Primary => (
             p.accent,
@@ -186,12 +197,16 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, text: &str, kind: ButtonStyle) -> e
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-pub fn icon_button(ui: &mut egui::Ui, icon: Icon, label: &str, active: bool) -> egui::Response {
+pub fn icon_button(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    label: impl AsRef<str>,
+    active: bool,
+) -> egui::Response {
+    let label = label.as_ref();
     let p = Palette::new(ui.visuals().dark_mode);
     let (rect, response) = ui.allocate_exact_size(egui::Vec2::splat(40.0), egui::Sense::click());
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
-    });
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), label));
     if active || response.hovered() || response.has_focus() {
         ui.painter()
             .rect_filled(rect, 8, if active { p.accent_bg } else { p.raised });
@@ -215,7 +230,8 @@ pub fn icon_button(ui: &mut egui::Ui, icon: Icon, label: &str, active: bool) -> 
         .on_hover_text(label)
 }
 
-pub fn badge(ui: &mut egui::Ui, text: &str, color: Color32) {
+pub fn badge(ui: &mut egui::Ui, text: impl AsRef<str>, color: Color32) {
+    let text = text.as_ref();
     egui::Frame::new()
         .fill(color.gamma_multiply(if ui.visuals().dark_mode { 0.12 } else { 0.08 }))
         .corner_radius(4)
@@ -225,7 +241,8 @@ pub fn badge(ui: &mut egui::Ui, text: &str, color: Color32) {
         });
 }
 
-pub fn section(ui: &mut egui::Ui, title: &str) {
+pub fn section(ui: &mut egui::Ui, title: impl AsRef<str>) {
+    let title = title.as_ref();
     ui.label(
         RichText::new(title)
             .size(11.0)
@@ -235,7 +252,9 @@ pub fn section(ui: &mut egui::Ui, title: &str) {
     ui.add_space(5.0);
 }
 
-pub fn empty(ui: &mut egui::Ui, icon: Icon, title: &str, message: &str) {
+pub fn empty(ui: &mut egui::Ui, icon: Icon, title: impl AsRef<str>, message: impl AsRef<str>) {
+    let title = title.as_ref();
+    let message = message.as_ref();
     let p = Palette::new(ui.visuals().dark_mode);
     ui.vertical_centered(|ui| {
         let (rect, _) = ui.allocate_exact_size(egui::Vec2::splat(44.0), egui::Sense::hover());
@@ -246,4 +265,16 @@ pub fn empty(ui: &mut egui::Ui, icon: Icon, title: &str, message: &str) {
         ui.add_space(3.0);
         ui.add(egui::Label::new(RichText::new(message).color(p.muted)).wrap());
     });
+}
+
+pub fn button_width(ui: &egui::Ui, text: &str) -> f32 {
+    ui.painter()
+        .layout_no_wrap(
+            text.into(),
+            FontId::proportional(13.0),
+            Color32::PLACEHOLDER,
+        )
+        .size()
+        .x
+        + 46.0
 }

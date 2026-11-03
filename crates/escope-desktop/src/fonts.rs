@@ -119,13 +119,14 @@ mod tests {
         };
         let ctx = egui::Context::default();
         ctx.set_fonts(fonts);
-        let _ = ctx.run(Default::default(), |ctx| {
-            ctx.fonts_mut(|fonts| {
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            ui.ctx().fonts_mut(|fonts| {
                 for family in [FontFamily::Proportional, FontFamily::Monospace] {
                     let id = egui::FontId::new(14.0, family);
                     assert!(fonts.has_glyphs(&id, "设置返回应用"), "{}", path.display());
                 }
             });
         });
+        output.textures_delta.clear();
     }
 }

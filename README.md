@@ -6,7 +6,7 @@
 
 ## 快速开始
 
-已在 macOS arm64、Rust 1.99.1 上验证。默认命令行构建需要 Rust 与平台串口系统库；原生 LVGL 可选测试还需要 C 编译器和 libclang。
+CLI 与设备侧库最低需要 Rust 1.88，桌面 Inspector 使用 eframe/egui 0.37，最低需要 Rust 1.95。已在 macOS arm64、Rust 1.99.1 上验证。默认命令行构建需要平台串口系统库；原生 LVGL 可选测试还需要 C 编译器和 libclang。
 
 ```sh
 cargo build -p escope-cli
@@ -33,7 +33,9 @@ cargo run -p escope-desktop -- tcp://127.0.0.1:9337
 bash scripts/package-macos.sh
 ```
 
-Inspector 提供 UI、日志、指标和设备信息四个工作区，支持对象树搜索、树/屏幕选点联动、属性检查、日志筛选、自动刷新和 PNG 保存。通过 `Send taps` 显式开启输入发送；默认 `Inspect` 模式点击画面只选中对象。支持深浅主题，PNG 导出在后台执行。
+Inspector 提供 UI、日志、指标和设备信息四个工作区，支持对象树搜索、树/屏幕选点联动、属性检查、日志筛选、自动刷新和 PNG 保存。通过“发送点击 / Send taps”显式开启输入发送；默认“检查 / Inspect”模式点击画面只选中对象。支持深浅主题，PNG 导出在后台执行。
+
+左下角地球按钮提供“跟随系统 / English / 简体中文”，切换立即生效，正常退出后保留语言选择。界面文案使用 Fluent；设备日志、对象名称、路径与原始错误保持原样。新增语言与桌面源码导航见 [桌面开发说明](crates/escope-desktop/README.md)。
 
 ## 设备接入
 
@@ -45,6 +47,8 @@ bash scripts/check-c-api.sh
 ```
 
 `escope-lvgl` 默认提供不依赖 native LVGL 的 UI 线程桥和节点注册表。`native` feature 通过宿主使用的 `rs_lvgl` 供应者访问 LVGL；适配器不重复编译另一份 LVGL。显示捕获与输入通过平台分别接入。
+
+C/C++ 消费者使用 EmbedScope 头文件和构建产物，无需跟随内部 Rust crate 的依赖版本。集成时仍需匹配头文件、目标 ABI、链接配置与设备协议；从源码构建产物时遵守对应 Rust 工具链要求。
 
 团子 OS 的可选 `embedscope` feature 使用独立的第二路 USB CDC。先通过 `escope --json devices` 区分控制台与诊断接口，再使用 `--dtr on` 连接诊断端口。原控制台继续处理应用管理与 A/B OTA。接入结构和构建方式见 [团子 OS 接入](https://umbrella22.github.io/EmbedScope_website/integration/dango)。
 

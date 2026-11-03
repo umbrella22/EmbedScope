@@ -1,6 +1,7 @@
 use escope_protocol::{
-    decode_frame, decode_payload, encode_frame, encode_payload, Envelope, Error, FrameDecoder,
-    Kind, Operation, Status, TreeQuery, MAX_FRAME, MAX_PACKET, MAX_PAYLOAD, VERSION,
+    decode_frame, decode_payload, encode_frame, encode_payload, CaptureChunk, CaptureMeta,
+    Envelope, Error, FrameDecoder, Kind, Metrics, Operation, PixelFormat, Status, TreeQuery,
+    UiNode, MAX_FRAME, MAX_PACKET, MAX_PAYLOAD, VERSION,
 };
 
 fn request(payload: &[u8]) -> Envelope<'_> {
@@ -39,6 +40,82 @@ fn map_keys_and_unknown_optional_fields_are_stable() {
     assert_eq!(
         decode_payload::<TreeQuery>(&[0xa2, 0, 0, 1, 1, 0]),
         Err(Error::Malformed)
+    );
+}
+
+#[test]
+fn payloads_match_minicbor_0_25_1_fixtures() {
+    fn check<'a, T>(value: T, expected: &'a [u8])
+    where
+        T: minicbor::Encode<()> + minicbor::Decode<'a, ()> + PartialEq + core::fmt::Debug,
+    {
+        let mut encoded = [0; MAX_PAYLOAD];
+        let n = encode_payload(&value, &mut encoded).unwrap();
+        assert_eq!(&encoded[..n], expected);
+        assert_eq!(decode_payload::<T>(expected).unwrap(), value);
+    }
+
+    // Captured with minicbor 0.25.1: codec upgrades must preserve protocol bytes,
+    // including omitted optional fields, integer limits, enums and byte strings.
+    check(
+        Metrics {
+            uptime_ms: 70_000,
+            heap_free: Some(u64::MAX),
+            heap_min_free: None,
+            heap_largest_free: Some(42),
+            psram_free: None,
+            frame_ms: Some(16),
+            queue_depth: Some(0),
+            dropped_logs: 0x1_0000_0000,
+        },
+        &[
+            0xa6, 0, 0x1a, 0, 1, 0x11, 0x70, 1, 0x1b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 3, 0x18, 42, 5, 16, 6, 0, 7, 0x1b, 0, 0, 0, 1, 0, 0, 0, 0,
+        ],
+    );
+    check(
+        CaptureMeta {
+            capture_id: 9,
+            width: 2,
+            height: 1,
+            stride: 8,
+            format: PixelFormat::Rgba8888,
+            total_bytes: 8,
+            frame_id: u64::MAX,
+        },
+        &[
+            0xa7, 0, 9, 1, 2, 2, 1, 3, 8, 4, 3, 5, 8, 6, 0x1b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff,
+        ],
+    );
+    check(
+        CaptureChunk {
+            capture_id: 9,
+            offset: 0,
+            data: &[0, 0x18, 0xff],
+            done: true,
+        },
+        &[0xa4, 0, 9, 1, 0, 2, 0x43, 0, 0x18, 0xff, 3, 0xf5],
+    );
+    check(
+        UiNode {
+            id: 7,
+            parent: 0,
+            kind: "label",
+            name: "设置",
+            x: -25,
+            y: -1,
+            width: 320,
+            height: 240,
+            flags: 0x8000_0001,
+            revision: u32::MAX,
+            next_cursor: None,
+        },
+        &[
+            0xaa, 0, 7, 1, 0, 2, 0x65, b'l', b'a', b'b', b'e', b'l', 3, 0x66, 0xe8, 0xae, 0xbe,
+            0xe7, 0xbd, 0xae, 4, 0x38, 0x18, 5, 0x20, 6, 0x19, 1, 0x40, 7, 0x18, 0xf0, 8, 0x1a,
+            0x80, 0, 0, 1, 9, 0x1a, 0xff, 0xff, 0xff, 0xff,
+        ],
     );
 }
 

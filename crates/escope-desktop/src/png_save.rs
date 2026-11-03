@@ -184,12 +184,13 @@ mod tests {
         save.poll();
         assert!(save.is_saving());
         assert!(!save.start_with(path.clone(), ctx.clone(), |_| panic!("duplicate save")));
-        let rendered = ctx.run(Default::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
+        let mut rendered = ctx.run_ui(Default::default(), |root| {
+            egui::CentralPanel::default().show(root, |ui| {
                 ui.button("Disconnect").clicked();
             });
         });
         assert!(!rendered.shapes.is_empty());
+        rendered.textures_delta.clear();
         release.send(()).unwrap();
         finish(&mut save);
         assert!(matches!(save.status(), SaveStatus::Saved(saved) if saved == &path));

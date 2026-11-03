@@ -3,41 +3,41 @@ use crate::png_save::SaveStatus;
 use eframe::egui::{FontId, Stroke};
 
 impl Inspector {
-    pub(super) fn inspector(&mut self, ctx: &egui::Context) {
+    pub(super) fn inspector(&mut self, root: &mut egui::Ui) {
         let p = Palette::new(self.dark);
         if self.show_logs {
-            egui::TopBottomPanel::bottom("log-drawer")
+            egui::Panel::bottom("log-drawer")
                 .resizable(true)
-                .default_height(160.0)
-                .min_height(100.0)
-                .max_height((ctx.available_rect().height() * 0.45).max(100.0))
+                .default_size(160.0)
+                .min_size(100.0)
+                .max_size((root.available_height() * 0.45).max(100.0))
                 .frame(theme::panel(p).inner_margin(egui::Margin::symmetric(16, 10)))
-                .show(ctx, |ui| {
+                .show(root, |ui| {
                     self.log_contents(ui, true);
                 });
         }
-        self.object_tree(ctx);
-        self.properties(ctx);
-        self.display(ctx);
+        self.object_tree(root);
+        self.properties(root);
+        self.display(root);
     }
 
-    fn object_tree(&mut self, ctx: &egui::Context) {
+    fn object_tree(&mut self, root: &mut egui::Ui) {
         let p = Palette::new(self.dark);
-        egui::SidePanel::left("object-tree")
+        egui::Panel::left("object-tree")
             .resizable(true)
-            .default_width(236.0)
-            .width_range(170.0..=360.0)
+            .default_size(236.0)
+            .size_range(170.0..=360.0)
             .frame(theme::panel(p))
-            .show(ctx, |ui| {
+            .show(root, |ui| {
                 ui.horizontal(|ui| {
-                    ui.strong("Objects");
-                    theme::badge(ui, &self.nodes.len().to_string(), p.muted);
+                    ui.strong(tr!(self.i18n, "objects"));
+                    theme::badge(ui, self.nodes.len().to_string(), p.muted);
                 });
                 ui.add_space(8.0);
                 ui.add(
                     egui::TextEdit::singleline(&mut self.tree_query)
                         .desired_width(f32::INFINITY)
-                        .hint_text("Filter by type, name or ID")
+                        .hint_text(tr!(self.i18n, "tree-filter"))
                         .margin(egui::vec2(8.0, 8.0)),
                 );
                 ui.add_space(8.0);
@@ -64,9 +64,10 @@ impl Inspector {
                                 egui::Sense::click(),
                             );
                             response.widget_info(|| {
-                                egui::WidgetInfo::labeled(
-                                    egui::WidgetType::SelectableLabel,
+                                egui::WidgetInfo::selected(
+                                    egui::Role::ListBoxOption,
                                     true,
+                                    selected,
                                     format!("{} #{} {}", node.kind, node.id, node.name),
                                 )
                             });
@@ -135,15 +136,16 @@ impl Inspector {
                             }
                             response
                                 .on_hover_cursor(egui::CursorIcon::PointingHand)
-                                .on_hover_text(format!(
-                                    "{} #{}\n{}\n{} × {} at {}, {}",
-                                    node.kind,
-                                    node.id,
-                                    node.name,
-                                    node.width,
-                                    node.height,
-                                    node.x,
-                                    node.y
+                                .on_hover_text(tr!(
+                                    self.i18n,
+                                    "object-bounds",
+                                    kind = &node.kind,
+                                    id = node.id,
+                                    name = &node.name,
+                                    width = node.width,
+                                    height = node.height,
+                                    x = node.x,
+                                    y = node.y
                                 ));
                             ui.add_space(1.0);
                         }
@@ -153,19 +155,19 @@ impl Inspector {
                                 ui,
                                 Icon::Layers,
                                 if self.nodes.is_empty() {
-                                    "No objects yet"
+                                    tr!(self.i18n, "objects-empty")
                                 } else {
-                                    "No matching objects"
+                                    tr!(self.i18n, "objects-no-match")
                                 },
                                 if self.info.is_none() {
-                                    "Connect a device to explore its UI tree."
+                                    tr!(self.i18n, "objects-connect")
                                 } else if !self.supports(escope_host::protocol::capability::UI_TREE)
                                 {
-                                    "This Agent does not expose a UI tree."
+                                    tr!(self.i18n, "objects-unsupported")
                                 } else if !query.is_empty() {
-                                    "Try another type, label or object ID."
+                                    tr!(self.i18n, "objects-filter-help")
                                 } else {
-                                    "Refresh to read the current UI tree."
+                                    tr!(self.i18n, "objects-refresh")
                                 },
                             );
                         }
@@ -173,15 +175,15 @@ impl Inspector {
             });
     }
 
-    fn properties(&mut self, ctx: &egui::Context) {
+    fn properties(&mut self, root: &mut egui::Ui) {
         let p = Palette::new(self.dark);
-        egui::SidePanel::right("object-properties")
+        egui::Panel::right("object-properties")
             .resizable(true)
-            .default_width(252.0)
-            .width_range(210.0..=380.0)
+            .default_size(252.0)
+            .size_range(210.0..=380.0)
             .frame(theme::panel(p))
-            .show(ctx, |ui| {
-                ui.strong("Properties");
+            .show(root, |ui| {
+                ui.strong(tr!(self.i18n, "properties"));
                 ui.add_space(14.0);
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
@@ -197,51 +199,66 @@ impl Inspector {
             .iter()
             .find(|node| Some(node.id) == self.selected)
         {
-            object_properties(ui, node, p);
+            object_properties(ui, node, p, &self.i18n);
         } else {
             ui.add_space(18.0);
-            theme::empty(ui, Icon::Inspect, "Inspect an object",
-                "Choose a row in the tree or click the display to inspect its bounds and attributes.");
+            theme::empty(
+                ui,
+                Icon::Inspect,
+                tr!(self.i18n, "inspect-object"),
+                tr!(self.i18n, "inspect-object-help"),
+            );
         }
         ui.add_space(24.0);
         ui.separator();
         ui.add_space(12.0);
-        theme::section(ui, "DEVICE SNAPSHOT");
+        theme::section(ui, tr!(self.i18n, "device-snapshot"));
         if let Some(info) = &self.info {
             ui.label(RichText::new(&info.name).strong());
             ui.add(egui::Label::new(RichText::new(&info.model).small().color(p.muted)).wrap());
         } else {
-            ui.label(RichText::new("No active session").color(p.muted));
+            ui.label(RichText::new(tr!(self.i18n, "no-session")).color(p.muted));
         }
         if let Some(metrics) = &self.metrics {
             ui.add_space(10.0);
-            property(ui, "Free heap", super::bytes(metrics.heap_free));
             property(
                 ui,
-                "Frame",
-                metrics
-                    .frame_ms
-                    .map_or("Unavailable".into(), |v| format!("{v} ms")),
+                tr!(self.i18n, "heap-free"),
+                super::bytes(&self.i18n, metrics.heap_free),
             );
             property(
                 ui,
-                "Queue depth",
+                tr!(self.i18n, "frame"),
+                metrics
+                    .frame_ms
+                    .map_or(tr!(self.i18n, "unavailable"), |v| format!("{v} ms")),
+            );
+            property(
+                ui,
+                tr!(self.i18n, "queue-depth"),
                 metrics
                     .queue_depth
-                    .map_or("Unavailable".into(), |v| v.to_string()),
+                    .map_or(tr!(self.i18n, "unavailable"), |v| v.to_string()),
             );
         }
         ui.add_space(10.0);
-        if theme::button(ui, Icon::Metrics, "All metrics", ButtonStyle::Quiet).clicked() {
+        if theme::button(
+            ui,
+            Icon::Metrics,
+            tr!(self.i18n, "all-metrics"),
+            ButtonStyle::Quiet,
+        )
+        .clicked()
+        {
             self.view = View::Metrics;
         }
     }
 
-    fn display(&mut self, ctx: &egui::Context) {
+    fn display(&mut self, root: &mut egui::Ui) {
         let p = Palette::new(self.dark);
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.background).inner_margin(16))
-            .show(ctx, |ui| self.display_contents(ui, ctx, p));
+            .show(root, |ui| self.display_contents(ui, &ui.ctx().clone(), p));
     }
 
     fn display_contents(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, p: Palette) {
@@ -258,7 +275,11 @@ impl Inspector {
         } else {
             self.display_empty(ui, canvas, p);
             ui.add_space(2.0);
-            ui.label(RichText::new("No display frame").size(11.0).color(p.muted));
+            ui.label(
+                RichText::new(tr!(self.i18n, "no-display"))
+                    .size(11.0)
+                    .color(p.muted),
+            );
         }
         ui.add_space(6.0);
         self.export_controls(ui, ctx, p);
@@ -266,20 +287,39 @@ impl Inspector {
 
     fn display_modes(&mut self, ui: &mut egui::Ui, p: Palette) {
         ui.horizontal_wrapped(|ui| {
-            let inspect = if self.inject { ButtonStyle::Quiet } else { ButtonStyle::Selected };
-            if theme::button(ui, Icon::Inspect, "Inspect", inspect)
-                .on_hover_text("Click the display to select an object. No input is sent.").clicked() {
+            let inspect = if self.inject {
+                ButtonStyle::Quiet
+            } else {
+                ButtonStyle::Selected
+            };
+            if theme::button(ui, Icon::Inspect, tr!(self.i18n, "inspect-mode"), inspect)
+                .on_hover_text(tr!(self.i18n, "inspect-mode-hint"))
+                .clicked()
+            {
                 self.inject = false;
             }
-            ui.add_enabled_ui(self.supports(escope_host::protocol::capability::INPUT), |ui| {
-                let mode = if self.inject { ButtonStyle::Warning } else { ButtonStyle::Quiet };
-                if theme::button(ui, Icon::Tap, "Send taps", mode)
-                    .on_hover_text("Send a 60 ms tap to the device, then refresh. This changes the device UI.").clicked() {
-                    self.inject = true;
-                }
-            });
+            ui.add_enabled_ui(
+                self.supports(escope_host::protocol::capability::INPUT),
+                |ui| {
+                    let mode = if self.inject {
+                        ButtonStyle::Warning
+                    } else {
+                        ButtonStyle::Quiet
+                    };
+                    if theme::button(ui, Icon::Tap, tr!(self.i18n, "tap-mode"), mode)
+                        .on_hover_text(tr!(self.i18n, "tap-mode-hint"))
+                        .clicked()
+                    {
+                        self.inject = true;
+                    }
+                },
+            );
             if self.inject {
-                ui.label(RichText::new("Input armed").small().color(p.warning));
+                ui.label(
+                    RichText::new(tr!(self.i18n, "input-armed"))
+                        .small()
+                        .color(p.warning),
+                );
             }
         });
     }
@@ -338,9 +378,13 @@ impl Inspector {
                     .color(p.muted),
             );
             ui.label(
-                RichText::new(format!("Frame {}", meta.frame_id))
-                    .size(11.0)
-                    .color(p.muted),
+                RichText::new(tr!(
+                    self.i18n,
+                    "frame-number",
+                    id = meta.frame_id.to_string()
+                ))
+                .size(11.0)
+                .color(p.muted),
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.label(
@@ -356,15 +400,19 @@ impl Inspector {
     fn display_empty(&self, ui: &mut egui::Ui, canvas: egui::Rect, p: Palette) {
         let connected = self.info.is_some();
         let (title, message) = if !connected {
-            ("Your device, in focus.",
-                "Connect an Agent to inspect its interface. For a local preview, start the software reference device.")
+            (
+                tr!(self.i18n, "display-welcome"),
+                tr!(self.i18n, "display-connect"),
+            )
         } else if !self.supports(escope_host::protocol::capability::CAPTURE) {
-            ("Display capture unavailable",
-                "This Agent does not advertise display capture. Its other capabilities remain available.")
+            (
+                tr!(self.i18n, "capture-unsupported"),
+                tr!(self.i18n, "capture-unsupported-help"),
+            )
         } else {
             (
-                "Waiting for a display snapshot",
-                "Refresh to capture the current display output.",
+                tr!(self.i18n, "capture-waiting"),
+                tr!(self.i18n, "capture-refresh"),
             )
         };
         let mut child = ui.new_child(
@@ -378,7 +426,7 @@ impl Inspector {
             child.add_space(16.0);
             child.code("escope simulate");
             child.label(
-                RichText::new("Software reference · synthetic data")
+                RichText::new(tr!(self.i18n, "synthetic-data"))
                     .small()
                     .color(p.muted),
             );
@@ -387,19 +435,24 @@ impl Inspector {
 
     fn export_controls(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, p: Palette) {
         ui.horizontal(|ui| {
-            let width = (ui.available_width() - 115.0).max(40.0);
+            let label = tr!(self.i18n, "save-png");
+            let width = (ui.available_width()
+                - theme::button_width(ui, &label)
+                - ui.spacing().item_spacing.x
+                - 16.0)
+                .max(40.0);
             ui.add(
                 egui::TextEdit::singleline(&mut self.save_path)
                     .desired_width(width)
                     .font(egui::TextStyle::Monospace)
-                    .hint_text("New PNG file path")
+                    .hint_text(tr!(self.i18n, "png-path-hint"))
                     .margin(egui::vec2(8.0, 8.0)),
             )
             .on_hover_text(&self.save_path);
             let enabled = self.capture.is_some() && !self.png_save.is_saving();
             if ui
                 .add_enabled_ui(enabled, |ui| {
-                    theme::button(ui, Icon::Save, "Save PNG", ButtonStyle::Quiet)
+                    theme::button(ui, Icon::Save, &label, ButtonStyle::Quiet)
                 })
                 .inner
                 .clicked()
@@ -414,11 +467,22 @@ impl Inspector {
             }
         });
         let (message, color) = match self.png_save.status() {
-            SaveStatus::Idle => ("Export the captured frame to a new file.".into(), p.muted),
-            SaveStatus::Saving(path) => (format!("Saving {}…", path.display()), p.accent),
-            SaveStatus::Saved(path) => (format!("Saved {}", path.display()), p.accent),
+            SaveStatus::Idle => (tr!(self.i18n, "png-idle"), p.muted),
+            SaveStatus::Saving(path) => (
+                tr!(self.i18n, "png-saving", path = path.display().to_string()),
+                p.accent,
+            ),
+            SaveStatus::Saved(path) => (
+                tr!(self.i18n, "png-saved", path = path.display().to_string()),
+                p.accent,
+            ),
             SaveStatus::Failed { path, error } => (
-                format!("Could not save {}: {error}", path.display()),
+                tr!(
+                    self.i18n,
+                    "png-failed",
+                    path = path.display().to_string(),
+                    error = error
+                ),
                 p.error,
             ),
         };
@@ -427,11 +491,11 @@ impl Inspector {
     }
 }
 
-fn object_properties(ui: &mut egui::Ui, node: &UiNode, p: Palette) {
+fn object_properties(ui: &mut egui::Ui, node: &UiNode, p: Palette, i18n: &I18n) {
     ui.horizontal(|ui| {
-        theme::badge(ui, &format!("#{}", node.id), p.accent);
+        theme::badge(ui, format!("#{}", node.id), p.accent);
         ui.label(
-            RichText::new(format!("revision {}", node.revision))
+            RichText::new(tr!(i18n, "revision-number", revision = node.revision))
                 .small()
                 .color(p.muted),
         );
@@ -441,7 +505,7 @@ fn object_properties(ui: &mut egui::Ui, node: &UiNode, p: Palette) {
         ui.add(egui::Label::new(&node.name).wrap());
     }
     ui.add_space(22.0);
-    theme::section(ui, "LAYOUT");
+    theme::section(ui, tr!(i18n, "layout"));
     let width = ui.available_width() - 24.0;
     egui::Frame::new()
         .fill(p.raised)
@@ -455,10 +519,10 @@ fn object_properties(ui: &mut egui::Ui, node: &UiNode, p: Palette) {
                 .spacing([10.0, 14.0])
                 .show(ui, |ui| {
                     for (index, (label, value)) in [
-                        ("X", node.x.to_string()),
-                        ("Y", node.y.to_string()),
-                        ("Width", node.width.to_string()),
-                        ("Height", node.height.to_string()),
+                        (tr!(i18n, "geometry-x"), node.x.to_string()),
+                        (tr!(i18n, "geometry-y"), node.y.to_string()),
+                        (tr!(i18n, "width"), node.width.to_string()),
+                        (tr!(i18n, "height"), node.height.to_string()),
                     ]
                     .into_iter()
                     .enumerate()
@@ -474,18 +538,18 @@ fn object_properties(ui: &mut egui::Ui, node: &UiNode, p: Palette) {
                 });
         });
     ui.add_space(20.0);
-    theme::section(ui, "ATTRIBUTES");
+    theme::section(ui, tr!(i18n, "attributes"));
     property(
         ui,
-        "Parent",
+        tr!(i18n, "parent"),
         if node.parent == 0 {
-            "Root".into()
+            tr!(i18n, "root")
         } else {
             format!("#{}", node.parent)
         },
     );
-    property(ui, "Flags", format!("0x{:08x}", node.flags));
-    property(ui, "Revision", node.revision.to_string());
+    property(ui, tr!(i18n, "flags"), format!("0x{:08x}", node.flags));
+    property(ui, tr!(i18n, "revision"), node.revision.to_string());
 }
 
 fn dotted_canvas(ui: &egui::Ui, canvas: egui::Rect, p: Palette) {
@@ -538,7 +602,8 @@ fn selection_outline(
     }
 }
 
-pub(super) fn property(ui: &mut egui::Ui, label: &str, value: String) {
+pub(super) fn property(ui: &mut egui::Ui, label: impl AsRef<str>, value: String) {
+    let label = label.as_ref();
     let p = Palette::new(ui.visuals().dark_mode);
     ui.horizontal(|ui| {
         ui.label(RichText::new(label).size(12.0).color(p.muted));

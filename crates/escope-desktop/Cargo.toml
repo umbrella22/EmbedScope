@@ -2,7 +2,7 @@
 name = "escope-desktop"
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
+rust-version = "1.95"
 license.workspace = true
 description = "Native EmbedScope device Inspector"
 
@@ -10,3 +10,9 @@ description = "Native EmbedScope device Inspector"
 escope-host.workspace = true
 tokio.workspace = true
 eframe.workspace = true
+fluent-bundle = "0.16.0"
+unic-langid = "0.9.6"
+sys-locale = "0.3.2"
+
+[dev-dependencies]
+fluent-syntax = "0.12.0"

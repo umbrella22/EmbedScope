@@ -20,6 +20,7 @@ pub enum Icon {
     Layers,
     Check,
     Book,
+    Language,
 }
 
 pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
@@ -42,6 +43,19 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
         );
     };
     match icon {
+        Icon::Language => {
+            painter.circle_stroke(point(12.0, 12.0), 9.0 * unit, stroke);
+            line(&[[3.0, 12.0], [21.0, 12.0]]);
+            for sign in [-1.0, 1.0] {
+                line(&[
+                    [12.0, 3.0],
+                    [12.0 + sign * 4.0, 7.0],
+                    [12.0 + sign * 5.0, 12.0],
+                    [12.0 + sign * 4.0, 17.0],
+                    [12.0, 21.0],
+                ]);
+            }
+        }
         Icon::Inspect => {
             line(&[
                 [5.0, 3.0],
