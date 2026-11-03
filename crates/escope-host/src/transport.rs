@@ -3,6 +3,9 @@ use serde::Serialize;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_serial::SerialPortBuilderExt;
 
+#[cfg(target_os = "macos")]
+mod macos;
+
 pub(crate) trait Transport: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Transport for T {}
 
@@ -65,18 +68,29 @@ pub(crate) async fn open(
         Ok(Box::new(stream))
     } else {
         let path = endpoint.strip_prefix("serial://").unwrap_or(endpoint);
-        let builder = tokio_serial::new(path, baud);
-        let builder = match dtr {
-            Some(value) => builder.dtr_on_open(value),
-            None => builder,
-        };
-        // serialport opens Unix ports exclusively by default. A second
-        // TIOCEXCL on the same descriptor returns EBUSY on macOS.
-        let stream = builder
-            .open_native_async()
-            .map_err(|e| Error::Io(e.to_string()))?;
+        #[cfg(target_os = "macos")]
+        let stream = macos::open(path, baud, dtr)?;
+        #[cfg(not(target_os = "macos"))]
+        let stream = open_native_serial(path, baud, dtr)?;
         Ok(Box::new(stream))
     }
+}
+
+fn open_native_serial(
+    path: &str,
+    baud: u32,
+    dtr: Option<bool>,
+) -> Result<tokio_serial::SerialStream> {
+    let builder = tokio_serial::new(path, baud);
+    let builder = match dtr {
+        Some(value) => builder.dtr_on_open(value),
+        None => builder,
+    };
+    // serialport opens Unix ports exclusively by default. A second
+    // TIOCEXCL on the same descriptor returns EBUSY on macOS.
+    builder
+        .open_native_async()
+        .map_err(|e| Error::Io(e.to_string()))
 }
 
 #[cfg(all(test, unix))]
@@ -94,5 +108,40 @@ mod tests {
         assert!(open(&path, 0, None).await.is_err());
         drop(first);
         assert!(open(&path, 0, None).await.is_ok());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn standard_baud_pty_opens_and_preserves_binary_bytes() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        for baud in [9600, 115200, 230400] {
+            for dtr in [None, Some(false), Some(true)] {
+                let (mut master, slave) = tokio_serial::SerialStream::pair().unwrap();
+                let path = slave.name().unwrap();
+                drop(slave);
+                let mut port = open(&path, baud, dtr).await.unwrap();
+                let message = [0, b'\r', b'\n', 0x11, 0x13, 0xff];
+                master.write_all(&message).await.unwrap();
+                let mut received = [0; 6];
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(1),
+                    port.read_exact(&mut received),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                assert_eq!(received, message);
+                port.write_all(&message).await.unwrap();
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(1),
+                    master.read_exact(&mut received),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                assert_eq!(received, message);
+            }
+        }
     }
 }
