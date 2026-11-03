@@ -90,20 +90,29 @@ class Context:
     def save(self):
         (self.out / f"{self.name}.json").write_text(json.dumps(self.receipt, indent=2) + "\n")
 
-    def run(self, name, command, cwd=ROOT):
+    def run(self, name, command, cwd=ROOT, timeout=1800):
         log = self.out / f"{self.name}-{name}.log"
         print(f"{name}: running", flush=True)
         started = time.time()
         with log.open("w") as output:
-            result = subprocess.run([str(part) for part in command], cwd=cwd, env=self.env,
-                stdout=output, stderr=subprocess.STDOUT, timeout=1800, check=False)
+            try:
+                result = subprocess.run([str(part) for part in command], cwd=cwd, env=self.env,
+                    stdout=output, stderr=subprocess.STDOUT, timeout=timeout, check=False)
+                code = result.returncode
+            except subprocess.TimeoutExpired:
+                output.write(f"\nCommand exceeded {timeout} seconds.\n")
+                code = 124
         self.receipt["commands"].append({"name": name, "command": [str(part) for part in command],
-            "seconds": round(time.time() - started, 3), "exit": result.returncode,
+            "seconds": round(time.time() - started, 3), "exit": code,
             "log_sha256": sha256(log.read_bytes())})
         self.save()
-        if result.returncode:
+        if code:
             raise RuntimeError(f"{name} failed; see {log}\n{log.read_text(errors='replace')[-3500:]}")
         print(f"{name}: PASS", flush=True)
+
+    def expect_output(self, name, expected):
+        if expected not in (self.out / f"{self.name}-{name}.log").read_text():
+            raise RuntimeError(f"{name} did not produce the expected output: {expected}")
 
     def record(self, path):
         self.receipt["artifacts"][path.name] = {"sha256": sha256(path.read_bytes()), "bytes": path.stat().st_size}

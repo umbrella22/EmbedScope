@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 
-from release_support.binaries import TARGETS, checksums
+from release_support.binaries import TARGETS, checksums, distribution_names
 from release_support.common import PACKAGES, ROOT, release_version, require_tag, sha256
 
 REPOSITORY = "umbrella22/EmbedScope"
@@ -23,9 +23,8 @@ def gh(*args, check=True):
 
 def collect(source, destination, version, commit):
     groups = [("release-source", "verify", [f"{name}-{version}.crate" for name in PACKAGES]
-        + [f"embedscope-c-sdk-{version}.tar.gz"])]
-    groups.extend((f"release-{target}", "binaries", [f"{product}-{version}-{target}" +
-        (".zip" if target.endswith("msvc") else ".tar.gz") for product in ("escope", "embedscope-inspector")])
+        + [f"embedscope-c-sdk-{version}.zip"])]
+    groups.extend((f"release-{target}", "binaries", distribution_names(version, target))
         for target in sorted(TARGETS))
     destination.mkdir(parents=True, exist_ok=False)
     for group, name, filenames in groups:
@@ -35,7 +34,12 @@ def collect(source, destination, version, commit):
             raise RuntimeError(f"{group} source identity differs from the clean version tag")
         required = ({"cargo-package", "consumer-sdk", "consumer-cli-install", "consumer-cli-e2e",
             "c-sdk-host-build", "c-sdk-native-libs", "c-sdk-c-link", "c-sdk-c-harness", "c-sdk-no-std"}
-            if name == "verify" else {"native-build", "shipped-cli-version", "shipped-cli-e2e"})
+            if name == "verify" else {"native-build", "shipped-cli-version", "shipped-cli-e2e",
+                "shipped-inspector-version", "shipped-inspector-smoke"})
+        if group.endswith("linux-gnu"):
+            required.update({"appimage-deploy", "appimage-build", "appimage-extract"})
+        if group.endswith("darwin"):
+            required.add("shipped-inspector-signature")
         commands = {command["name"] for command in receipt["commands"] if command["exit"] == 0}
         if not required.issubset(commands) or any(command["exit"] for command in receipt["commands"]):
             raise RuntimeError(f"{group} validation is incomplete")
@@ -55,17 +59,9 @@ def publish_assets(tag, stage, version):
     if result.returncode:
         if "release not found" not in result.stderr.lower() and "HTTP 404" not in result.stderr:
             raise RuntimeError(result.stderr)
-        notes = stage.parent / "release-notes.md"
-        notes.write_text(f"EmbedScope {version}: embedded diagnostics and control.\n\n"
-            "[Documentation](https://umbrella22.github.io/EmbedScope_website/)\n\n"
-            "- Six SDK/CLI crates are available from crates.io; install the CLI with "
-            f"`cargo install escope-cli --version {version} --locked`.\n"
-            "- CLI and Inspector archives cover macOS arm64/x64, Linux x64 and Windows x64.\n"
-            "- The C SDK archive contains a matching header and target-buildable Rust sources.\n"
-            "- SHA256SUMS covers every attached distribution archive.\n\n"
-            "macOS application bundles use ad hoc signatures and are not notarized. "
-            "Linux binaries are built on Ubuntu 24.04 and need a compatible glibc; "
-            "Inspector also needs a desktop session and OpenGL.\n")
+        notes = ROOT / "notes" / f"{tag}.md"
+        if not notes.is_file():
+            raise RuntimeError(f"Release notes are missing: {notes.name}")
         gh("release", "create", tag, "--verify-tag", "--draft", "--title", f"EmbedScope {version}", "--notes-file", str(notes))
         result = gh("release", "view", tag, "--json", "tagName,isDraft,isPrerelease,assets")
     record = json.loads(result.stdout)

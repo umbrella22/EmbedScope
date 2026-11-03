@@ -41,6 +41,26 @@ ES_OK/ES_BUSY 等为本地 ABI 返回码，ES_STATUS_* 为远程操作状态，�
 - `services/input/touch.rs::INPUT`：合成按压/定时释放进入统一系统输入队列，reset 释放未完成输入。
 - `platform/runtime/crashlog.rs` 和 `panic_record.rs`：RTC 摘要只有在完整 build marker 匹配时才接受构建/启动元数据，历史 panic 可保留未知身份。
 
-固件使用同一 LVGL 9.6 provider 与 rs_lvgl/rs_lvgl_ui 0.3.1。源码依赖假设 EmbedScope 与团子工程为同级目录；构建为 `cargo build -p os --bin os-fw --release --target riscv32imafc-unknown-none-elf --features firmware,embedscope`。C 编译器/libclang 路径仍按目标工程配置。
+固件使用同一 LVGL 9.6 provider 与 rs_lvgl/rs_lvgl_ui 0.3.1。可选 SDK 依赖来自 crates.io，`Cargo.lock` 记录版本/checksum；构建为 `cargo build -p os --bin os-fw --release --target riscv32imafc-unknown-none-elf --features firmware,embedscope`。C 编译器/libclang 路径仍按目标工程配置。
 
 Agent及大缓冲在PSRAM初始化后创建；开启诊断时服务线程栈为32KiB，关闭时仍为16KiB。目标验证应检查链接栈余量、实际RTOS任务栈和内部heap，不能只依据主线程链接成功判断任务栈足够。指标最低水位缺测返回null。物理验证记录与设备恢复状态见目标工程和EmbedScope当前执行台账。
+
+## rs_lvgl 的原生参考接入
+
+rs_lvgl 仓库的 `examples/embedscope/` 是独立应用：使用 registry rs_lvgl/rs_lvgl_ui 0.3.1 与 EmbedScope 0.1.0，保留单一 native provider。它运行真实 LVGL 9.6 的 320×240 内存显示，没有 SDL 窗口；不能当作物理显示验收。
+
+在该仓库根目录：
+
+```sh
+cargo run --manifest-path examples/embedscope/Cargo.toml --features embedscope
+cargo run --manifest-path examples/embedscope/Cargo.toml --release --features embedscope
+cargo build --manifest-path examples/embedscope/Cargo.toml --release
+cargo tree --manifest-path examples/embedscope/Cargo.toml --edges normal,build
+cargo test --manifest-path examples/embedscope/Cargo.toml --features embedscope -- --test-threads=1
+```
+
+前两条启用诊断，默认端口 `tcp://127.0.0.1:9338`，只允许 loopback、一个连接。第三条关闭诊断，第四条应没有 escope-* 正常/构建依赖；dev-dependencies 不属于出货产物。不能把应用的 embedscope feature 写成 rs_lvgl_ui 的库 feature。
+
+实现由 UI-loop 轮询非阻塞 TCP/Agent、NativeTree<128>、真实 RGB888 flush 镜像和原生 Pointer。捕获拥有固定像素，End/reset 释放；输入配对，断线提前 release 已接受的 tap（适配短连接 CLI），显式 Cancel 抑制该 click。通用树 kind=lv_obj、name为空；语义类型/文本需自定义 TreeSource。内存缺测 null，CRASH 未声明。缓冲、listener、sink、input 均受同一个 feature 控制。
+
+复制到板端时复用现有 executor、最终显示与输入仲裁，不把主机 std/TCP 服务强塞到 no_std 库。混用本地 path 与 registry rs_lvgl 可能产生重复 links=lvgl；统一整个 provider 来源，或去掉 escope-lvgl/native 并实现应用 TreeSource。参考 [rs_lvgl 调试指南](https://umbrella22.github.io/rs_lvgl_website/guide/embedscope.html)。

@@ -1,4 +1,4 @@
-//! Optional CJK fallback from fonts already installed on the running system.
+//! CJK fallback from the AppImage bundle or installed system fonts.
 use eframe::egui::{self, FontData, FontDefinitions, FontFamily};
 use std::path::PathBuf;
 
@@ -79,6 +79,9 @@ fn candidates() -> Vec<PathBuf> {
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
+        if let Some(appdir) = std::env::var_os("APPDIR") {
+            paths.push(PathBuf::from(appdir).join("usr/share/fonts/NotoSansCJK-Regular.ttc"));
+        }
         paths.extend(
             [
                 "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",

@@ -27,4 +27,4 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential clang libclang-dev pkg-config libudev-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxi-dev libxrandr-dev libgl1-mesa-dev fonts-noto-cjk
+        sudo apt-get install -y build-essential clang libclang-dev pkg-config libudev-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libgl1-mesa-dev libgl1-mesa-dri fonts-noto-cjk xvfb xauth

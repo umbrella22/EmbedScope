@@ -3,11 +3,14 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tarfile
+import subprocess
 import tempfile
 import unittest
+import zipfile
 from unittest.mock import patch
 
 SCRIPTS = Path(__file__).resolve().parents[1]
@@ -16,6 +19,9 @@ sys.path.insert(0, str(SCRIPTS))
 from release_support.common import PACKAGES, release_version, sha256
 from release_support.packages import archive_files
 from release_support.registry import reconcile_archive
+from release_support.binaries import archive_directory, checksums, extract_zip, distribution_names, TARGETS
+from release_support.appimage import fetch_tool
+from release_support.common import Context
 
 spec = importlib.util.spec_from_file_location("github_release", SCRIPTS / "publish-github-release.py")
 github_release = importlib.util.module_from_spec(spec)
@@ -111,6 +117,77 @@ class ArchiveTests(unittest.TestCase):
 
 
 class DistributionTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "Unix ZIP executable permission contract")
+    def test_cli_remains_executable_after_zip_round_trip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            stage = root / "escope-unix"
+            stage.mkdir()
+            binary = stage / "escope"
+            binary.write_text("#!/bin/sh\necho CLI_ZIP_OK\n")
+            binary.chmod(0o755)
+            # Registry dependency files can use an epoch timestamp.
+            os.utime(binary, (0, 0))
+            archive_directory(stage, root / "escope.zip")
+            extract_zip(root / "escope.zip", root / "unpacked")
+            result = subprocess.run([root / "unpacked/escope-unix/escope"],
+                capture_output=True, text=True, check=True)
+            self.assertEqual(result.stdout.strip(), "CLI_ZIP_OK")
+
+    def test_distribution_zip_cannot_write_outside_extraction_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with zipfile.ZipFile(root / "bad.zip", "w") as archive:
+                archive.writestr("../escaped", "unexpected")
+            with self.assertRaisesRegex(RuntimeError, "Unsafe ZIP"):
+                extract_zip(root / "bad.zip", root / "unpacked")
+            self.assertFalse((root / "escaped").exists())
+
+    def test_appimage_is_included_in_public_checksums(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "inspector.AppImage"
+            image.write_bytes(b"AppImage")
+            self.assertIn(sha256(b"AppImage") + "  inspector.AppImage", checksums(root).read_text())
+
+    def test_modified_appimage_tool_cache_is_rejected_before_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "linuxdeploy.AppImage").write_bytes(b"modified tool")
+            with self.assertRaisesRegex(RuntimeError, "cached checksum differs"):
+                fetch_tool("linuxdeploy", root)
+
+    def test_inspector_smoke_gate_is_required_for_asset_collection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "collected/release-source"
+            source.mkdir(parents=True)
+            names = [f"{name}-{VERSION}.crate" for name in PACKAGES] + [f"embedscope-c-sdk-{VERSION}.zip"]
+            for name in names:
+                (source / name).write_bytes(b"source")
+            (source / "verify.json").write_text(json.dumps({"version": VERSION, "commit": COMMIT,
+                "dirty": False, "commands": [{"name": name, "exit": 0} for name in [
+                    "cargo-package", "consumer-sdk", "consumer-cli-install", "consumer-cli-e2e",
+                    "c-sdk-host-build", "c-sdk-native-libs", "c-sdk-c-link", "c-sdk-c-harness", "c-sdk-no-std"]],
+                "artifacts": {name: {"sha256": sha256(b"source")} for name in names}}))
+            target = sorted(TARGETS)[0]
+            platform = root / f"collected/release-{target}"
+            platform.mkdir()
+            (platform / "binaries.json").write_text(json.dumps({"version": VERSION, "commit": COMMIT,
+                "target": target, "dirty": False, "commands": [{"name": name, "exit": 0} for name in [
+                    "native-build", "shipped-cli-version", "shipped-cli-e2e", "shipped-inspector-version",
+                    "shipped-inspector-signature"]], "artifacts": {}}))
+            with self.assertRaisesRegex(RuntimeError, "validation is incomplete"):
+                github_release.collect(root / "collected", root / "assets", VERSION, COMMIT)
+
+    def test_native_launch_timeout_is_recorded_as_a_failed_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            context = Context(VERSION, Path(directory), "timeout")
+            with self.assertRaisesRegex(RuntimeError, "launch failed"):
+                context.run("launch", [sys.executable, "-c", "import time; time.sleep(2)"], timeout=0.05)
+            receipt = json.loads((Path(directory) / "timeout.json").read_text())
+            self.assertEqual(receipt["commands"][-1]["exit"], 124)
+
     def test_missing_validation_gate_stops_asset_collection(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

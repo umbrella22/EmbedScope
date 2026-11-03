@@ -1,67 +1,74 @@
 # EmbedScope
 
-**Embedded Diagnostics & Control** — 用 Rust 为嵌入式设备提供日志、指标、UI 检查、显示捕获与输入控制。命令行入口为 `escope`，桌面 Inspector 复用同一主机 SDK。
+**Embedded Diagnostics & Control** — 用 Rust 为嵌入式设备提供日志、指标、UI 检查、显示捕获与输入控制。命令行入口为 `escope`，桌面 Inspector 提供可视化调试工作区。
 
-当前版本包含无堆分配的 `no_std` Agent、TCP/串口主机传输、软件参考设备、原生桌面程序、可选 LVGL 接入和 C ABI。已在 ESP-Mosaico S31 上接入团子 OS、LVGL 9.6 与 rs_lvgl 0.3.1，验证真实日志、内存指标、UI 树、最终显示捕获和模拟输入。软件参考设备的数据标为 synthetic。SDK 与 CLI 的 0.1.0 已发布到 [crates.io](https://crates.io/crates/escope-cli/0.1.0)，Inspector 可从源码构建。
+设备侧运行无堆分配的 `no_std` Agent，通过串口或 TCP 字节流连接主机。Rust 与 C/C++ 固件均可接入，LVGL 适配器支持复用应用的原生实例。团子 OS 的接入覆盖日志、内存指标、UI 树、最终显示捕获、模拟输入与 RTC 崩溃摘要。
 
-## 快速开始
+## 下载与运行
 
-CLI 与设备侧库最低需要 Rust 1.88，桌面 Inspector 使用 eframe/egui 0.37，最低需要 Rust 1.95。已在 macOS arm64、Rust 1.99.1 上验证。默认命令行构建需要平台串口系统库；原生 LVGL 可选测试还需要 C 编译器和 libclang。
+从 [GitHub Releases](https://github.com/umbrella22/EmbedScope/releases/latest) 选择与操作系统和处理器架构匹配的文件：
 
-从 crates.io 安装 CLI：
+| 工具 | Linux | Windows | macOS |
+| --- | --- | --- | --- |
+| Inspector | AppImage | 免安装 ZIP | `.app` 应用 ZIP，提供 Apple Silicon 与 Intel 版本 |
+| `escope` CLI | ZIP | ZIP | ZIP，提供 Apple Silicon 与 Intel 版本 |
+| C/C++ SDK | 包含头文件、Rust 源码和 staticlib 包装工程的 ZIP，可按固件目标交叉编译 | 同左 | 同左 |
 
-```sh
-cargo install escope-cli --version 0.1.0 --locked
-escope --help
-```
+CLI 解压后可直接执行 `./escope --version`，Windows 使用 `.\escope.exe --version`。将可执行文件所在目录加入 `PATH` 后，即可在任意工作目录使用 `escope`。下载包无需安装 Rust。各文件的完整性可用同一 Release 的 `SHA256SUMS` 校验。
 
-从源码构建并启动软件参考设备：
+Inspector 在 Windows 解压后运行程序，在 macOS 解压后打开应用；Linux 先为 AppImage 添加执行权限，再运行。具体操作见[快速开始](https://umbrella22.github.io/EmbedScope_website/guide/start/quick-start)与[桌面 Inspector](https://umbrella22.github.io/EmbedScope_website/guide/basic/inspector)。
 
-```sh
-cargo build -p escope-cli
-./target/debug/escope simulate
-```
+## 第一次调试
 
-在另一个终端连接参考设备：
+使用软件参考设备体验完整会话：
 
 ```sh
-./target/debug/escope -d tcp://127.0.0.1:9337 info
-./target/debug/escope -d tcp://127.0.0.1:9337 logs --count 3
-./target/debug/escope -d tcp://127.0.0.1:9337 metrics
-./target/debug/escope -d tcp://127.0.0.1:9337 ui tree
-./target/debug/escope -d tcp://127.0.0.1:9337 input tap 100 140
-./target/debug/escope -d tcp://127.0.0.1:9337 display capture screen.png
-./target/debug/escope -d tcp://127.0.0.1:9337 diagnose --output diagnosis --logs 8
+escope simulate
 ```
 
-参考设备在同一服务进程内保留计数；点击按钮区域后，树中的计数、frame ID 和屏幕像素都会改变。`screen.png` 和 `diagnosis` 需要使用尚不存在的路径。
+保持服务运行，在另一个终端执行：
 
 ```sh
-cargo run -p escope-desktop -- tcp://127.0.0.1:9337
-# macOS 本地开发应用包（ad hoc 签名）
-bash scripts/package-macos.sh
+escope -d tcp://127.0.0.1:9337 info
+escope -d tcp://127.0.0.1:9337 logs --count 3
+escope -d tcp://127.0.0.1:9337 metrics
+escope -d tcp://127.0.0.1:9337 ui tree
+escope -d tcp://127.0.0.1:9337 input tap 100 140
+escope -d tcp://127.0.0.1:9337 display capture screen.png
+escope -d tcp://127.0.0.1:9337 diagnose --output diagnosis --logs 8
 ```
 
-Inspector 提供 UI、日志、指标和设备信息四个工作区，支持对象树搜索、树/屏幕选点联动、属性检查、日志筛选、自动刷新和 PNG 保存。通过“发送点击 / Send taps”显式开启输入发送；默认“检查 / Inspect”模式点击画面只选中对象。支持深浅主题，PNG 导出在后台执行。
+参考设备提供 synthetic 数据。点击按钮区域后，计数、frame ID 和屏幕像素会改变。每次保存使用新的截图文件名和诊断目录。
 
-左下角地球按钮提供“跟随系统 / English / 简体中文”，切换立即生效，正常退出后保留语言选择。界面文案使用 Fluent；设备日志、对象名称、路径与原始错误保持原样。新增语言与桌面源码导航见 [桌面开发说明](crates/escope-desktop/README.md)。
+在 Inspector 顶部填写 `tcp://127.0.0.1:9337` 并连接，即可使用 UI、日志、指标和设备信息四个工作区。对象树、画面选点和属性检查相互联动；默认“检查 / Inspect”模式只选择对象，开启“发送点击 / Send taps”后才会向设备发送输入。
+
+左下角地球菜单支持“跟随系统 / English / 简体中文”，主题按钮切换深浅外观。PNG 保存、日志筛选和自动刷新可以在同一会话中使用。
 
 ## 设备接入
 
-在固件中依赖 `escope-agent` 和 `escope-protocol`，实现 `Backend`，将字节交给有界帧解码器，并在断线时调用 `Agent::reset`。Agent 不创建 HAL、任务、执行器或 allocator。完整可运行的最小参考：
+Rust 固件依赖 `escope-agent` 和 `escope-protocol`，实现 `Backend`，将传输字节交给有界帧解码器。应用提供任务调度、HAL、显示与输入，断线时调用 `Agent::reset` 释放会话资源。`escope-lvgl` 提供 UI 线程桥和可选原生树适配器，适配器与应用使用同一 LVGL provider、ABI 和配置。
+
+C/C++ 固件从 Release 下载 C SDK ZIP，使用配套头文件和包装工程，按目标 triple、CPU/ABI、panic 策略和链接配置构建静态库。头文件与 SDK 使用同一发布版本；设备协议和目标 ABI 分别具有兼容性要求。具体步骤见 [C/C++ 接入](https://umbrella22.github.io/EmbedScope_website/integration/c)。
+
+团子 OS 通过默认关闭的 `embedscope` feature 控制诊断功能。开发与问题复现使用 `cargo fw --features embedscope`，正式交付使用 `cargo fw`。诊断通过第二路 USB CDC 提供，连接时选择实际诊断接口并启用 DTR。完整说明见[团子 OS 接入](https://umbrella22.github.io/EmbedScope_website/integration/dango)。
+
+## 开发与构建
+
+已有 Rust 环境时，也可从 crates.io 安装 CLI：
 
 ```sh
-cargo run -p escope-agent --example poll_device
-bash scripts/check-c-api.sh
+cargo install escope-cli --version '=0.1.1' --locked
 ```
 
-`escope-lvgl` 默认提供不依赖 native LVGL 的 UI 线程桥和节点注册表。`native` feature 通过宿主使用的 `rs_lvgl` 供应者访问 LVGL；适配器不重复编译另一份 LVGL。显示捕获与输入通过平台分别接入。
+CLI 与设备侧库最低需要 Rust 1.88；Inspector 使用 eframe/egui 0.37，最低需要 Rust 1.95。平台构建依赖见[构建与测试](https://umbrella22.github.io/EmbedScope_website/development/testing)。
 
-C/C++ 消费者使用 EmbedScope 头文件和构建产物，无需跟随内部 Rust crate 的依赖版本。集成时仍需匹配头文件、目标 ABI、链接配置与设备协议；从源码构建产物时遵守对应 Rust 工具链要求。
+```sh
+cargo build -p escope-cli
+cargo run -p escope-desktop -- tcp://127.0.0.1:9337
+bash scripts/check.sh
+```
 
-发布工具会生成包含头文件、SDK 源码与 Rust staticlib 包装工程的 C SDK 源码包，可以脱离仓库针对固件目标编译。也可用自建的薄包装工程直接依赖 crates.io 上的 `escope-c-api`。不提供跨 MCU/ABI 通用的静态库。分发范围、本地打包与 Trusted Publishing 配置见 [发布说明](RELEASING.md)。
-
-团子 OS 的可选 `embedscope` feature 使用独立的第二路 USB CDC。先通过 `escope --json devices` 区分控制台与诊断接口，再使用 `--dtr on` 连接诊断端口。原控制台继续处理应用管理与 A/B OTA。接入结构和构建方式见 [团子 OS 接入](https://umbrella22.github.io/EmbedScope_website/integration/dango)。
+`check.sh` 检查 workspace、真实 LVGL 内存显示、RISC-V `no_std`、CLI 独立进程和 C harness。桌面源码结构与语言扩展见[桌面开发说明](crates/escope-desktop/README.md)，分发与发布流程见[发布说明](RELEASING.md)。
 
 ## 文档与 skills
 
@@ -71,16 +78,6 @@ C/C++ 消费者使用 EmbedScope 头文件和构建产物，无需跟随内部 R
 - [调试与接入 skills](https://umbrella22.github.io/EmbedScope_website/guide/advanced/skills)
 - [架构与生命周期](https://umbrella22.github.io/EmbedScope_website/development/architecture) / [构建与测试](https://umbrella22.github.io/EmbedScope_website/development/testing)
 
-Rspress 文档站位于独立的 [EmbedScope_website 仓库](https://github.com/umbrella22/EmbedScope_website)。站点源码可在其仓库内运行 `npm ci && npm run build`。
-
-## 验证
-
-```sh
-bash scripts/check.sh
-```
-
-验证包含 workspace 测试、真实 LVGL 内存显示、RISC-V `no_std` 检查、CLI 独立进程闭环和真实 C harness。实机记录另行覆盖双 CDC、Home/原生/Lua/转场显示、原生与 Lua 模拟输入、断线回收及异常帧恢复。物理手指触控、主动崩溃后的 RTC 保留、原生 Windows/Linux 窗口、长期内存碎片和托管部署仍需要对应环境验证。
-
-当前文件管理、OTA、ELF 符号解析、网络配对和多进程 broker 仍属于后续扩展。当前 TCP 面向本地开发与受控测试连接。
+文档站源码位于 [EmbedScope_website](https://github.com/umbrella22/EmbedScope_website)。
 
 MIT licensed. LVGL and other dependencies retain their own licenses.

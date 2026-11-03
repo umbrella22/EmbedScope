@@ -6,7 +6,7 @@ import shutil
 import shlex
 import tempfile
 
-from .binaries import archive_directory
+from .binaries import archive_directory, extract_zip
 from .common import DEVICE_PACKAGES, ROOT
 from .packages import archive_files
 
@@ -71,9 +71,9 @@ codegen-units = 1
 ''')
         (stage / "README.md").write_text(f'''# EmbedScope C SDK {context.version}
 
-The kit contains the C header, the three EmbedScope Rust source packages and a
-small static-library wrapper. It builds without an EmbedScope repository clone
-or a published EmbedScope crate. Cargo still fetches third-party dependencies.
+The ZIP contains the C header, three EmbedScope Rust source packages, a locked
+dependency graph and a static-library wrapper. Cargo fetches third-party
+dependencies when building for the firmware target.
 
 Install Rust 1.88 or newer and the Rust target supported by the board toolchain:
 
@@ -93,8 +93,8 @@ The wrapper's default panic handler spins forever. Replace it with the board's
 reset/watchdog policy. Keep exactly one Rust panic handler and the board's linker
 integration. `--features std` is for host verification only.
 
-After crates.io publication, a custom wrapper can depend on
-`escope-c-api = "={context.version}"` directly; the vendor patches are optional.
+A custom wrapper can also depend on `escope-c-api = "={context.version}"` from
+crates.io. The included wrapper uses the SDK sources under `vendor/`.
 Keep the C header and Rust SDK on the same release version. Package versions,
 wire protocol major, and target ABI have separate compatibility requirements.
 
@@ -113,8 +113,10 @@ MIT licensed; third-party dependencies retain their licenses.
         context.run("c-sdk-c-link", ["cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", stage / "include",
             ROOT / "examples/c/harness.c", context.target / "release/libescope_c_sdk.a", *shlex.split(matches[-1]), "-o", harness])
         context.run("c-sdk-c-harness", [harness])
-        context.run("c-sdk-no-std", ["cargo", "build", "--release", "--locked", "--manifest-path", manifest,
-            "--target", "riscv32imafc-unknown-none-elf"])
-        destination = context.out / f"embedscope-c-sdk-{context.version}.tar.gz"
+        destination = context.out / f"embedscope-c-sdk-{context.version}.zip"
         archive_directory(stage, destination)
         context.record(destination)
+        extracted = Path(temporary) / "unpacked"
+        extract_zip(destination, extracted)
+        context.run("c-sdk-no-std", ["cargo", "build", "--release", "--locked", "--manifest-path",
+            extracted / stage.name / "Cargo.toml", "--target", "riscv32imafc-unknown-none-elf"])

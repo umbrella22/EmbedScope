@@ -39,11 +39,13 @@ The rlib supplies no global panic handler and compiles for bare-metal RISC-V.
 The C harness's static-library wrapper uses `std` for a host runtime; firmware
 wrappers supply their target-specific panic handler, compiler and linker setup.
 
-Release C SDK source kits contain the matching header, device SDK sources and a
-standalone static-library wrapper. They can be built without cloning the full
-repository. After registry publication, a custom Rust `staticlib` wrapper can
-depend on `escope-c-api = "=0.1.0"` directly. The C/C++ firmware still supplies
-its target triple, CPU/ABI settings, panic policy and linker integration.
+Download the C SDK ZIP from [GitHub Releases](https://github.com/umbrella22/EmbedScope/releases/latest).
+It contains the matching header, device SDK sources and a standalone
+static-library wrapper. Build the wrapper for the firmware's target triple and
+CPU/ABI settings, then include `include/escope.h` and link the resulting library.
+The firmware supplies its panic policy, runtime and linker integration. A custom
+Rust `staticlib` wrapper can also depend on `escope-c-api` from crates.io. Use
+the header and Rust SDK from the same release.
 
 [Release and C SDK build instructions](https://github.com/umbrella22/EmbedScope/blob/master/RELEASING.md)
 

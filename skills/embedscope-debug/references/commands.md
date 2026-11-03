@@ -1,5 +1,9 @@
 # 已实现的调试接口
 
+## 获取主机工具
+
+从 [GitHub Releases](https://github.com/umbrella22/EmbedScope/releases/latest) 下载匹配平台和架构的 CLI ZIP，解压后执行 `escope`；将其目录加入 PATH 后可在任意位置使用。已有 Rust 环境时可选择 Cargo 安装。Inspector 使用同一 Release 中的 AppImage、Windows 免安装 ZIP 或 macOS 应用 ZIP。
+
 ## 基本命令
 
 ```sh
@@ -27,10 +31,9 @@ metrics 的 heap_free/heap_min_free/heap_largest_free/psram_free 是可选字节
 
 ```sh
 escope --device ENDPOINT input tap 100 140 --hold-ms 60
-cargo run -p escope-desktop -- ENDPOINT
 ```
 
-用户已请求操作复现时，tap 经平台统一输入路由执行。Inspector 默认点击画面只选择节点；Send taps to device 开启后才发送输入。当前没有多进程串口 broker；同一真实串口避免 CLI 和 GUI 同时打开。
+打开 Inspector，在顶部填写同一 ENDPOINT 并连接。用户已请求操作复现时，tap 经平台统一输入路由执行。Inspector 默认点击画面只选择节点；Send taps to device 开启后才发送输入。当前没有多进程串口 broker；同一真实串口避免 CLI 和 GUI 同时打开。
 
 ## 软件参考设备
 
@@ -51,3 +54,17 @@ CaptureStart 超时/取消且尚不知道 capture ID 时，SDK 会关闭 Session
 实机 info 的 model 为 `ESP-Mosaico S31 / physical`。其树适配器提供真实控件类型、label 文本与页面名；Home/Lua 画布内容不会展开成逐元素 LVGL 节点。截图来自最终显示平面，包含 Home、原生/Lua Screen 和 Slide 转场。输入经过系统统一队列，页面切换完成后重新采集树与截图；二者是独立采样。
 
 日志中的 `rs_lvgl_ui.stats` 可与页面、revision 和像素共同定位问题。内存最低水位当前缺测，应为 null。RTC 摘要关联 build marker，未主动复现崩溃时不能宣称完整 crash 保留验证。固件构建与刷写使用团子工程工具，不是 escope 命令。
+
+## 编译开关
+
+目标应用使用默认关闭的 `embedscope` feature。开启后，debug/release profile 均可保留 Agent。团子 OS 的 `cargo fw --features embedscope` 构建 release 诊断固件；`cargo fw` 构建不含诊断的正常固件。`rs_lvgl_ui/diagnostics` 只提供事件/sink，不启动 Agent 或端口。
+
+结束会话只清理资源。移除诊断功能需要关闭应用 feature、重新构建，并在设备上安装和启动新镜像。检查 normal/build 依赖图、最终产物和实际枚举接口；普通文本控制台不能作为诊断端口。
+
+## rs_lvgl 原生进程
+
+在包含示例的 rs_lvgl checkout 运行 `cargo run --manifest-path examples/embedscope/Cargo.toml --features embedscope`。连接 `tcp://127.0.0.1:9338`，model 应为 `LVGL 9.6 / memory display`。画面来自真实 LVGL RGB888 flush，不是 simulate 的 synthetic 像素，也不代表物理设备。
+
+通用树提供 lv_obj、几何和 state，名称为空；按钮为224×56，默认布局可 tap 100 140。一个连接同时服务多个 SDK 请求，CLI/Inspector轮流使用。短连接 tap 断线时配对 release，显式 Cancel 才抑制 click；树revision会因输入状态和应用更新变化。CRASH不支持，heap/PSRAM缺测null。需要日志时在同一Session订阅并触发计数更新，不能对空闲且没有日志源的进程要求固定条数的诊断包完整。
+
+默认构建和 `cargo build --manifest-path examples/embedscope/Cargo.toml --release` 不启用诊断；`--release --features embedscope` 仍保留诊断。启用、关闭和移植合同见 [rs_lvgl 指南](https://umbrella22.github.io/rs_lvgl_website/guide/embedscope.html)。

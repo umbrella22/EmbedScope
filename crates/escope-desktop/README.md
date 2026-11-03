@@ -19,7 +19,7 @@ cargo test -p escope-desktop
 | `locales/*.ftl` | Embedded interface translations |
 | `src/worker.rs` | Device connection and protocol work on a separate thread |
 | `src/png_save.rs` | Background export of a retained capture |
-| `src/fonts.rs` | Optional installed CJK font fallback |
+| `src/fonts.rs` | AppImage or installed-system CJK font fallback |
 | `src/theme.rs`, `src/icons.rs` | Shared native visual primitives |
 | `src/brand.rs`, `assets/brand/` | Embedded brand mark, editable SVG and platform icon assets |
 
@@ -70,4 +70,4 @@ Translate the entire message in every catalog. Avoid assembling sentences from s
 
 Device names, object kinds and names, log targets and messages, firmware/build IDs, endpoints, file paths and original error details remain literal. Only their surrounding interface labels are translated. Log severity codes remain `ERROR`, `WARN`, `INFO`, `DEBUG`, and `TRACE`; the severity filter's descriptions are localized.
 
-Chinese text uses an installed CJK fallback where available. The application does not redistribute or download system fonts. Machines without suitable CJK glyphs need a locally installed font; rendering is verified separately from catalog correctness.
+The Linux AppImage includes Noto Sans CJK and its license. Windows and macOS use installed system CJK fonts. The application does not download fonts; other source-build environments need an installed fallback for Chinese glyphs. Font rendering is verified separately from catalog correctness.

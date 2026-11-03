@@ -11,9 +11,15 @@ description: 将 EmbedScope Agent 接入 Rust 或 C/C++ 嵌入式工程，配置
 
 确认目标架构、no_std/allocator、执行器、USB/UART 收发点、全局 logger、现有控制协议，以及 LVGL native 供应者。读取实际 EmbedScope 的 Backend、typed payload 和 C header；[平台接入参考](references/platform.md) 提供接口与生命周期决策。
 
-先提供 Hello/Info。capabilities 只报告已实现且可访问的操作；没有屏幕的设备可以只接日志和指标。协议/Agent 默认无分配，不引入 Tokio 或强制 Embassy。使用审阅后的 path/Git revision，当前没有已发布 registry 包可假设使用。
+先提供 Hello/Info。capabilities 只报告已实现且可访问的操作；没有屏幕的设备可以只接日志和指标。协议/Agent 默认无分配，不引入 Tokio 或强制 Embassy。设备侧 `escope-protocol`、`escope-agent`、`escope-lvgl` 使用 crates.io 版本；应用锁文件记录实际版本，C ABI 包为 `escope-c-api`。C/C++ 接入可从 [GitHub Releases](https://github.com/umbrella22/EmbedScope/releases/latest) 下载 C SDK ZIP，并按目标 ABI 交叉编译。源码开发使用审阅后的 path/Git revision。主机 CLI 优先使用 Release ZIP；已有 Rust 环境可选 Cargo 安装。
 
 把接收字节交给 FrameDecoder 和 decode_frame，由 Agent::handle 执行请求，再完整发送其返回帧。发送器保存部分写的后缀，不能在 TX 完成前复用缓冲。断线同时清理 parser 并 Agent::reset。seed 非零且跨启动/连接变化。
+
+## 编译开关与交付配置
+
+由应用拥有默认关闭的 `embedscope` feature，将 SDK 依赖设为 optional，并以 `#[cfg(feature = "embedscope")]` 门控模块、初始化、传输、缓冲与日志分流。日常排查和设备验收显式开启；复现优化问题可用 `--release --features embedscope`；正式交付不选择该 feature。
+
+`--release` 不自动移除已启用的调试功能，断开 Inspector 只清理会话。Cargo features 会合并；`--no-default-features` 不能撤销其他依赖显式启用的能力，正式构建避免 `--all-features`。检查 normal/build 依赖图和最终链接产物；设备还要安装关闭诊断的新固件并确认接口。`rs_lvgl_ui/diagnostics` 只提供事件/sink，不会启动 Agent 或端口。
 
 ## 能力与线程
 
