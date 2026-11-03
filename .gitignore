@@ -4,3 +4,4 @@
 !/crates/escope-desktop/assets/brand/*.png
 /artifacts/
 /docs/
+__pycache__/

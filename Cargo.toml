@@ -9,6 +9,7 @@ edition = "2021"
 rust-version = "1.88"
 license = "MIT"
 repository = "https://github.com/umbrella22/EmbedScope"
+homepage = "https://umbrella22.github.io/EmbedScope_website/"
 
 [workspace.dependencies]
 escope-protocol = { path = "crates/escope-protocol", version = "0.1.0" }

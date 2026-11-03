@@ -50,6 +50,8 @@ bash scripts/check-c-api.sh
 
 C/C++ 消费者使用 EmbedScope 头文件和构建产物，无需跟随内部 Rust crate 的依赖版本。集成时仍需匹配头文件、目标 ABI、链接配置与设备协议；从源码构建产物时遵守对应 Rust 工具链要求。
 
+发布工具会生成包含头文件、SDK 源码与 Rust staticlib 包装工程的 C SDK 源码包，可以脱离仓库针对固件目标编译。crate 发布后，也可用自建的薄包装工程直接依赖 `escope-c-api`。不提供跨 MCU/ABI 通用的静态库。分发范围、本地打包与 Trusted Publishing 配置见 [发布说明](RELEASING.md)。
+
 团子 OS 的可选 `embedscope` feature 使用独立的第二路 USB CDC。先通过 `escope --json devices` 区分控制台与诊断接口，再使用 `--dtr on` 连接诊断端口。原控制台继续处理应用管理与 A/B OTA。接入结构和构建方式见 [团子 OS 接入](https://umbrella22.github.io/EmbedScope_website/integration/dango)。
 
 ## 文档与 skills

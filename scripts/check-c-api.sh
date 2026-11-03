@@ -1,13 +1,13 @@
 #!/bin/sh
 set -eu
 
-repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 example_manifest="$repo_root/examples/c/Cargo.toml"
 artifact_dir="$repo_root/target/validation/c-api"
 mkdir -p "$artifact_dir"
 
-cargo build --manifest-path "$example_manifest" --target-dir "$artifact_dir/rust"
-cargo rustc --manifest-path "$example_manifest" --target-dir "$artifact_dir/rust" --lib -- --print native-static-libs >"$artifact_dir/native-libs.log" 2>&1
+cargo build --locked --manifest-path "$example_manifest" --target-dir "$artifact_dir/rust"
+cargo rustc --locked --manifest-path "$example_manifest" --target-dir "$artifact_dir/rust" --lib -- --print native-static-libs >"$artifact_dir/native-libs.log" 2>&1
 native_libs=$(sed -n 's/^note: native-static-libs: //p' "$artifact_dir/native-libs.log" | tail -n 1)
 if [ -z "$native_libs" ]; then
   printf '%s\n' 'Rust did not report native static link dependencies' >&2

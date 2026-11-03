@@ -2,7 +2,7 @@
 
 Allocation-free, `no_std` C ABI for the EmbedScope Agent. The header is
 [`include/escope.h`](include/escope.h). A running C integration is available in
-[`examples/c`](../../examples/c).
+[`examples/c`](https://github.com/umbrella22/EmbedScope/tree/master/examples/c).
 
 The caller allocates `escope_context_size()` bytes at
 `escope_context_alignment()`, initializes the context once, and serializes all
@@ -38,6 +38,14 @@ Structured log prefixes are bounded and explicitly marked when truncated.
 The rlib supplies no global panic handler and compiles for bare-metal RISC-V.
 The C harness's static-library wrapper uses `std` for a host runtime; firmware
 wrappers supply their target-specific panic handler, compiler and linker setup.
+
+Release C SDK source kits contain the matching header, device SDK sources and a
+standalone static-library wrapper. They can be built without cloning the full
+repository. After registry publication, a custom Rust `staticlib` wrapper can
+depend on `escope-c-api = "=0.1.0"` directly. The C/C++ firmware still supplies
+its target triple, CPU/ABI settings, panic policy and linker integration.
+
+[Release and C SDK build instructions](https://github.com/umbrella22/EmbedScope/blob/master/RELEASING.md)
 
 ```sh
 cargo check -p escope-c-api --target riscv32imafc-unknown-none-elf

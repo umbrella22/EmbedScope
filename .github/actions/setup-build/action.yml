@@ -1,0 +1,30 @@
+name: Set up EmbedScope build
+description: Install pinned Rust, Python, native libraries and Cargo cache
+inputs:
+  toolchain:
+    description: Rust toolchain version
+    default: '1.99.1'
+  targets:
+    description: Additional Rust compilation targets
+    default: ''
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+      with:
+        python-version: '3.14'
+    - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        targets: ${{ inputs.targets }}
+        components: rustfmt, clippy
+    - uses: Swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
+      with:
+        key: ${{ inputs.toolchain }}
+        cache-on-failure: true
+    - name: Install Linux native libraries
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential clang libclang-dev pkg-config libudev-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxi-dev libxrandr-dev libgl1-mesa-dev fonts-noto-cjk

@@ -1,24 +1,39 @@
 #!/usr/bin/env python3
 """Exercise the CLI in separate processes against the software reference device."""
+import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
-import select
+import queue
 import subprocess
 import tempfile
+import threading
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = ROOT / "target/debug/escope"
-OUT = ROOT / "target/validation"
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--binary", type=Path, default=ROOT / "target/debug" / ("escope.exe" if os.name == "nt" else "escope"))
+parser.add_argument("--output", type=Path, default=ROOT / "target/validation")
+args = parser.parse_args()
+CLI = args.binary.resolve(strict=True)
+OUT = args.output.resolve()
 OUT.mkdir(parents=True, exist_ok=True)
 evidence = Path(tempfile.mkdtemp(prefix="cli-e2e-", dir=OUT))
 server = subprocess.Popen([str(CLI), "--json", "simulate", "--listen", "127.0.0.1:0"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 commands = []
 
 try:
-    assert select.select([server.stdout], [], [], 10)[0], "reference device did not start"
-    endpoint = json.loads(server.stdout.readline())["endpoint"]
+    # Windows select() accepts sockets, but cannot wait on subprocess pipes.
+    startup = queue.Queue()
+    threading.Thread(target=lambda: startup.put(server.stdout.readline()), daemon=True).start()
+    try:
+        line = startup.get(timeout=10)
+    except queue.Empty:
+        raise RuntimeError("reference device did not announce its endpoint within 10 seconds") from None
+    if not line:
+        raise RuntimeError("reference device exited before startup: " + server.stderr.read())
+    endpoint = json.loads(line)["endpoint"]
 
     def run(*args, ok=True):
         command = [str(CLI), "--device", endpoint, "--json", *args]
@@ -55,7 +70,7 @@ try:
     run("display", "capture", str(evidence / "before.png"), ok=False)
     run("--timeout-ms", "500", "logs", "--count", "1", "--target", "no-such-target", ok=False)
     hashes = {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in evidence.glob("*.png")}
-    receipt = {"passed":True,"source":"software-reference","physical_device":False,"commands":commands,"png_sha256":hashes}
+    receipt = {"passed":True,"source":"software-reference","physical_device":False,"binary":str(CLI),"binary_sha256":hashlib.sha256(CLI.read_bytes()).hexdigest(),"commands":commands,"png_sha256":hashes}
     (evidence / "receipt.json").write_text(json.dumps(receipt, indent=2))
     print(json.dumps({"passed":True,"commands":len(commands),"evidence":str(evidence)}))
 finally:
