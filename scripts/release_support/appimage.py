@@ -140,7 +140,7 @@ def appimage(context, binary, documentation, destination):
     notices = appdir / "usr/share/doc/fonts-noto-cjk"
     notices.mkdir(parents=True)
     shutil.copy2("/usr/share/doc/fonts-noto-cjk/copyright", notices)
-    shutil.copytree(documentation, appdir / "usr/share/doc/embedscope")
+    shutil.copytree(documentation, appdir / "usr/share/doc/embedscope", dirs_exist_ok=True)
     context.run("appimage-build", [pack, "--no-appstream", appdir, destination])
     destination.chmod(0o755)
     context.record(destination)

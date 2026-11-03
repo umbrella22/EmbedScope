@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
 import tarfile
 import subprocess
@@ -21,7 +22,7 @@ from release_support.packages import archive_files
 from release_support.registry import reconcile_archive
 from release_support.binaries import (archive_directory, binaries, checksums, extract_zip,
     distribution_names, prepare_windows_smoke_mesa, smoke_inspector, TARGETS, WINDOWS_SMOKE_MESA)
-from release_support.appimage import appimage_icon, fetch_tool
+from release_support.appimage import appimage, appimage_icon, fetch_tool
 from release_support.common import Context
 
 spec = importlib.util.spec_from_file_location("github_release", SCRIPTS / "publish-github-release.py")
@@ -118,6 +119,61 @@ class ArchiveTests(unittest.TestCase):
 
 
 class DistributionTests(unittest.TestCase):
+    def test_appimage_retains_system_notices_when_installing_distribution_docs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = Context(VERSION, root / "dist", "binaries")
+            context.target = root / "target"
+            docs = root / "documentation"
+            (docs / "licenses/example-sdk").mkdir(parents=True)
+            (docs / "README.txt").write_text("distribution instructions")
+            (docs / "dependency-licenses.json").write_text('[{"name":"example-sdk"}]')
+            (docs / "licenses/example-sdk/LICENSE").write_text("SDK attribution")
+            binary = root / "escope-desktop"
+            binary.write_bytes(b"Inspector fixture")
+            image = context.out / "inspector.AppImage"
+            appdir = root / "EmbedScope.AppDir"
+            libraries = ("libudev.so.1", "libxkbcommon.so.0", "libxkbcommon-x11.so.0",
+                "libX11.so.6", "libXcursor.so.1", "libXi.so.6", "libXrandr.so.2",
+                "libwayland-client.so.0", "libwayland-cursor.so.0", "libwayland-egl.so.1")
+            ldconfig = "\n".join(f"{name} (libc6,x86-64) => /usr/lib/{name}" for name in libraries)
+            copy2 = shutil.copy2
+
+            def retain_system_notices(directory, unused):
+                notices = directory / "usr/share/doc/embedscope/system-libraries"
+                notices.mkdir(parents=True)
+                (notices / "packages.json").write_text('[{"package":"example-system-lib"}]')
+                (notices / "example-system-lib.copyright").write_text("system attribution")
+
+            def copy_host_font(source, destination, **kwargs):
+                if str(source).startswith("/usr/share/"):
+                    destination = Path(destination)
+                    if destination.is_dir():
+                        destination /= Path(source).name
+                    destination.write_bytes(b"host font or font copyright fixture")
+                    return destination
+                return copy2(source, destination, **kwargs)
+
+            def run(name, command, **kwargs):
+                if name == "appimage-build":
+                    image.write_bytes(b"built AppImage fixture")
+
+            with patch("release_support.appimage.sys.platform", "linux"), \
+                    patch("release_support.appimage.fetch_tool", return_value=root / "tool.AppImage"), \
+                    patch("release_support.appimage.subprocess.check_output", return_value=ldconfig), \
+                    patch("release_support.appimage.system_notices", side_effect=retain_system_notices), \
+                    patch("release_support.appimage.shutil.copy2", side_effect=copy_host_font), \
+                    patch.object(context, "run", side_effect=run), patch.object(context, "expect_output"):
+                appimage(context, binary, docs, image)
+            installed = appdir / "usr/share/doc/embedscope"
+            self.assertEqual((installed / "README.txt").read_text(), "distribution instructions")
+            self.assertEqual((installed / "dependency-licenses.json").read_text(), '[{"name":"example-sdk"}]')
+            self.assertEqual((installed / "licenses/example-sdk/LICENSE").read_text(), "SDK attribution")
+            self.assertEqual((installed / "system-libraries/packages.json").read_text(), '[{"package":"example-system-lib"}]')
+            self.assertEqual((installed / "system-libraries/example-system-lib.copyright").read_text(), "system attribution")
+            self.assertTrue((appdir / "usr/share/fonts/NotoSansCJK-Regular.ttc").is_file())
+            self.assertTrue((appdir / "usr/share/doc/fonts-noto-cjk/copyright").is_file())
+
     def test_appimage_uses_512px_brand_icon_without_changing_window_icon(self):
         brand = SCRIPTS.parent / "crates/escope-desktop/assets/brand"
         window_icon = (brand / "app-icon.png").read_bytes()
