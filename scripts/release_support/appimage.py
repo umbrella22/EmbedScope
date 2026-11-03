@@ -21,6 +21,28 @@ TOOLS = {
 }
 
 
+def appimage_icon(source, destination):
+    """Reuse the brand's 512px PNG; linuxdeploy rejects the 1024px window icon."""
+    data = source.read_bytes()
+    if data[:4] != b"icns" or int.from_bytes(data[4:8], "big") != len(data):
+        raise RuntimeError("Invalid Inspector ICNS icon")
+    offset = 8
+    while offset + 8 <= len(data):
+        kind = data[offset:offset + 4]
+        length = int.from_bytes(data[offset + 4:offset + 8], "big")
+        if length < 8 or offset + length > len(data):
+            raise RuntimeError("Invalid Inspector ICNS icon member")
+        if kind == b"ic09":
+            png = data[offset + 8:offset + length]
+            if (png[:16] != b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" or
+                    png[16:24] != (512).to_bytes(4, "big") * 2):
+                raise RuntimeError("Inspector AppImage icon must be a 512px PNG")
+            destination.write_bytes(png)
+            return
+        offset += length
+    raise RuntimeError("Inspector ICNS icon has no 512px PNG")
+
+
 def system_notices(appdir, ldconfig):
     """Retain Ubuntu copyright/source metadata for dynamically bundled libraries."""
     origins = {}
@@ -93,7 +115,7 @@ def appimage(context, binary, documentation, destination):
         "Terminal=false\nStartupWMClass=io.github.umbrella22.embedscope.inspector\n"
     )
     icon = inputs / "embedscope-inspector.png"
-    shutil.copy2(ROOT / "crates/escope-desktop/assets/brand/app-icon.png", icon)
+    appimage_icon(ROOT / "crates/escope-desktop/assets/brand/app-icon.icns", icon)
     # eframe loads these through dlopen, so an executable-only dependency scan
     # would miss them. linuxdeploy also resolves their transitive dependencies.
     libraries = ["libudev.so.1", "libxkbcommon.so.0", "libxkbcommon-x11.so.0",

@@ -49,9 +49,14 @@ jobs:
         run: python3 scripts/release.py identity "$RELEASE_TAG"
       - name: Test native host
         run: cargo test --workspace --locked
+      - name: Test distribution contracts
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
       - name: Build and launch the distribution packages
         env:
           TARGET: ${{ matrix.target }}
+          # Hosted Windows runners have no GPU OpenGL driver. This opt-in adds
+          # pinned Mesa only to the unpacked smoke-test copy, after ZIP creation.
+          EMBEDSCOPE_WINDOWS_SMOKE_MESA: ${{ runner.os == 'Windows' && '1' || '0' }}
         run: python3 scripts/release.py binaries --target "$TARGET"
       - name: Retain platform archives
         if: always()

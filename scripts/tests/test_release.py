@@ -19,8 +19,9 @@ sys.path.insert(0, str(SCRIPTS))
 from release_support.common import PACKAGES, release_version, sha256
 from release_support.packages import archive_files
 from release_support.registry import reconcile_archive
-from release_support.binaries import archive_directory, checksums, extract_zip, distribution_names, TARGETS
-from release_support.appimage import fetch_tool
+from release_support.binaries import (archive_directory, binaries, checksums, extract_zip,
+    distribution_names, prepare_windows_smoke_mesa, smoke_inspector, TARGETS, WINDOWS_SMOKE_MESA)
+from release_support.appimage import appimage_icon, fetch_tool
 from release_support.common import Context
 
 spec = importlib.util.spec_from_file_location("github_release", SCRIPTS / "publish-github-release.py")
@@ -117,6 +118,102 @@ class ArchiveTests(unittest.TestCase):
 
 
 class DistributionTests(unittest.TestCase):
+    def test_appimage_uses_512px_brand_icon_without_changing_window_icon(self):
+        brand = SCRIPTS.parent / "crates/escope-desktop/assets/brand"
+        window_icon = (brand / "app-icon.png").read_bytes()
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "appimage.png"
+            appimage_icon(brand / "app-icon.icns", destination)
+            self.assertEqual(destination.read_bytes()[16:24], (512).to_bytes(4, "big") * 2)
+            self.assertEqual((brand / "app-icon.png").read_bytes(), window_icon)
+            self.assertEqual(window_icon[16:24], (1024).to_bytes(4, "big") * 2)
+
+    def test_appimage_icon_rejects_truncated_members_and_wrong_dimensions(self):
+        png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + (1024).to_bytes(4, "big") * 2
+        for member in (b"ic09" + (100).to_bytes(4, "big"),
+                b"ic09" + (len(png) + 8).to_bytes(4, "big") + png):
+            with self.subTest(member=member), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                source = root / "icon.icns"
+                source.write_bytes(b"icns" + (len(member) + 8).to_bytes(4, "big") + member)
+                with self.assertRaises(RuntimeError):
+                    appimage_icon(source, root / "icon.png")
+                self.assertFalse((root / "icon.png").exists())
+
+    def test_windows_smoke_mesa_is_added_after_zip_and_never_distributed(self):
+        target = "x86_64-pc-windows-msvc"
+        data = b"checksum-pinned Mesa test fixture"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = Context(VERSION, root / "dist", "binaries")
+            context.target = root / "target"
+            context.env["EMBEDSCOPE_WINDOWS_SMOKE_MESA"] = "1"
+            build = context.target / target / "release"
+            build.mkdir(parents=True)
+            for name in ("escope.exe", "escope-desktop.exe"):
+                (build / name).write_bytes(b"native executable fixture")
+            smoke_environments = []
+            published_zip = context.out / distribution_names(VERSION, target)[1]
+            archived_digest = None
+
+            def run(name, command, **kwargs):
+                nonlocal archived_digest
+                if name == "inspector-smoke-mesa-extract":
+                    # The immutable published ZIP must already exist at this point.
+                    archived_digest = sha256(published_zip.read_bytes())
+                    unpacked = Path(str(command[3]).removeprefix("-o"))
+                    self.assertIn("inspector-unpacked", unpacked.parts)
+                    self.assertEqual(command[5:], [f"x64/{dll}" for dll in WINDOWS_SMOKE_MESA["dlls"]])
+                    for dll in WINDOWS_SMOKE_MESA["dlls"]:
+                        (unpacked / dll).write_bytes(b"Mesa " + dll.encode())
+                elif name == "shipped-inspector-smoke":
+                    smoke_environments.append(context.env.copy())
+                    self.assertEqual(command[1], "--smoke-test")
+                    self.assertEqual(kwargs["timeout"], 45)
+                    self.assertTrue(Path(context.env["GLUTIN_WGL_OPENGL_DLL"]).is_file())
+
+            with patch("release_support.binaries.sys.platform", "win32"), \
+                    patch("release_support.binaries.host_target", return_value=target), \
+                    patch("release_support.binaries.dependency_notices"), \
+                    patch("release_support.binaries.urllib.request.urlopen", return_value=io.BytesIO(data)), \
+                    patch.dict(WINDOWS_SMOKE_MESA, {"sha256": sha256(data)}), \
+                    patch.object(context, "run", side_effect=run), \
+                    patch.object(context, "expect_output") as expect:
+                binaries(context, target)
+            self.assertEqual(len(smoke_environments), 1)
+            self.assertEqual(smoke_environments[0]["GALLIUM_DRIVER"], "llvmpipe")
+            self.assertEqual(smoke_environments[0]["LIBGL_ALWAYS_SOFTWARE"], "1")
+            self.assertNotIn("GLUTIN_WGL_OPENGL_DLL", context.env)
+            self.assertFalse(context.receipt["inspector_smoke_renderer"]["distributed"])
+            self.assertEqual(sha256(published_zip.read_bytes()), archived_digest)
+            with zipfile.ZipFile(published_zip) as archive:
+                self.assertFalse(any(name.endswith(".dll") for name in archive.namelist()))
+            expect.assert_any_call("shipped-inspector-smoke", "embedscope-inspector-smoke-ok")
+
+    def test_modified_windows_smoke_mesa_cache_is_rejected_before_extraction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = Context(VERSION, root / "dist", "binaries")
+            context.target = root
+            cache = root / "windows-smoke-mesa"
+            cache.mkdir()
+            (cache / f"mesa3d-{WINDOWS_SMOKE_MESA['version']}-release-msvc.7z").write_bytes(b"changed")
+            with patch("release_support.binaries.sys.platform", "win32"), patch.object(context, "run") as run:
+                with self.assertRaisesRegex(RuntimeError, "cached checksum differs"):
+                    prepare_windows_smoke_mesa(context, root / "unpacked/escope-desktop.exe")
+                run.assert_not_called()
+
+    def test_failed_windows_ui_smoke_still_fails_and_restores_environment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            context = Context(VERSION, Path(directory), "binaries")
+            context.env["EMBEDSCOPE_WINDOWS_SMOKE_MESA"] = "1"
+            original = context.env.copy()
+            with patch("release_support.binaries.prepare_windows_smoke_mesa", return_value={"GALLIUM_DRIVER": "llvmpipe"}), \
+                    patch.object(context, "run", side_effect=RuntimeError("real UI smoke failed")):
+                with self.assertRaisesRegex(RuntimeError, "real UI smoke failed"):
+                    smoke_inspector(context, Path(directory) / "escope-desktop.exe", "x86_64-pc-windows-msvc")
+            self.assertEqual(context.env, original)
+
     @unittest.skipIf(os.name == "nt", "Unix ZIP executable permission contract")
     def test_cli_remains_executable_after_zip_round_trip(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
 import zipfile
 
 from .common import ROOT, sha256
@@ -14,6 +15,12 @@ from .licenses import dependency_notices
 from .appimage import appimage
 
 TARGETS = {"aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"}
+WINDOWS_SMOKE_MESA = {
+    "version": "26.2.6",
+    "url": "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.6/mesa3d-26.2.6-release-msvc.7z",
+    "sha256": "b2e00615feaba45942343c265cc8c5f576142ca682c1ac6661922d4b72492877",
+    "dlls": ("opengl32.dll", "libgallium_wgl.dll"),
+}
 
 
 def distribution_names(version, target):
@@ -65,6 +72,51 @@ def extract_zip(source, destination):
             archive.extract(member, destination)
             if not member.is_dir() and member.create_system == 3:
                 path.chmod((member.external_attr >> 16) & 0o777)
+
+
+def prepare_windows_smoke_mesa(context, shipped):
+    """Provide software GL only beside the already-unpacked CI smoke executable."""
+    if sys.platform != "win32":
+        raise RuntimeError("Windows smoke Mesa must be prepared on Windows")
+    cache = context.target / "windows-smoke-mesa"
+    cache.mkdir(parents=True, exist_ok=True)
+    archive = cache / f"mesa3d-{WINDOWS_SMOKE_MESA['version']}-release-msvc.7z"
+    if not archive.exists():
+        request = urllib.request.Request(WINDOWS_SMOKE_MESA["url"], headers={"User-Agent": "EmbedScope release"})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            data = response.read()
+        if sha256(data) != WINDOWS_SMOKE_MESA["sha256"]:
+            raise RuntimeError("Windows smoke Mesa download checksum differs")
+        archive.write_bytes(data)
+    if sha256(archive.read_bytes()) != WINDOWS_SMOKE_MESA["sha256"]:
+        raise RuntimeError("Windows smoke Mesa cached checksum differs")
+    context.run("inspector-smoke-mesa-extract", ["7z", "e", "-y", f"-o{shipped.parent}", archive,
+        *[f"x64/{name}" for name in WINDOWS_SMOKE_MESA["dlls"]]])
+    dlls = {}
+    for name in WINDOWS_SMOKE_MESA["dlls"]:
+        path = shipped.parent / name
+        if not path.is_file():
+            raise RuntimeError(f"Windows smoke Mesa DLL is missing: {name}")
+        dlls[name] = sha256(path.read_bytes())
+    context.receipt["inspector_smoke_renderer"] = {
+        "name": "Mesa llvmpipe", "version": WINDOWS_SMOKE_MESA["version"],
+        "url": WINDOWS_SMOKE_MESA["url"], "archive_sha256": WINDOWS_SMOKE_MESA["sha256"],
+        "dll_sha256": dlls, "distributed": False,
+    }
+    context.save()
+    return {"GALLIUM_DRIVER": "llvmpipe", "LIBGL_ALWAYS_SOFTWARE": "1",
+        "GLUTIN_WGL_OPENGL_DLL": str(shipped.parent / "opengl32.dll")}
+
+
+def smoke_inspector(context, shipped, target):
+    environment = context.env.copy()
+    try:
+        if target.endswith("msvc") and context.env.get("EMBEDSCOPE_WINDOWS_SMOKE_MESA") == "1":
+            context.env.update(prepare_windows_smoke_mesa(context, shipped))
+        context.run("shipped-inspector-smoke", [shipped, "--smoke-test"], timeout=45)
+        context.expect_output("shipped-inspector-smoke", "embedscope-inspector-smoke-ok")
+    finally:
+        context.env = environment
 
 
 def binaries(context, target=None):
@@ -134,8 +186,7 @@ def binaries(context, target=None):
                     shipped = extracted / name / "escope-desktop.exe"
                 context.run("shipped-inspector-version", [shipped, "--version"])
                 context.expect_output("shipped-inspector-version", f"EmbedScope Inspector {context.version}")
-                context.run("shipped-inspector-smoke", [shipped, "--smoke-test"], timeout=45)
-                context.expect_output("shipped-inspector-smoke", "embedscope-inspector-smoke-ok")
+                smoke_inspector(context, shipped, target)
     context.receipt["target"] = target
     context.save()
 
