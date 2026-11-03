@@ -2,11 +2,20 @@
 
 **Embedded Diagnostics & Control** — 用 Rust 为嵌入式设备提供日志、指标、UI 检查、显示捕获与输入控制。命令行入口为 `escope`，桌面 Inspector 复用同一主机 SDK。
 
-当前开发版本包含无堆分配的 `no_std` Agent、TCP/串口主机传输、软件参考设备、原生桌面程序、可选 LVGL 接入和 C ABI。已在 ESP-Mosaico S31 上接入团子 OS、LVGL 9.6 与 rs_lvgl 0.3.1，验证真实日志、内存指标、UI 树、最终显示捕获和模拟输入。软件参考设备的数据标为 synthetic。当前使用源码构建，尚未发布安装包或 registry crate。
+当前版本包含无堆分配的 `no_std` Agent、TCP/串口主机传输、软件参考设备、原生桌面程序、可选 LVGL 接入和 C ABI。已在 ESP-Mosaico S31 上接入团子 OS、LVGL 9.6 与 rs_lvgl 0.3.1，验证真实日志、内存指标、UI 树、最终显示捕获和模拟输入。软件参考设备的数据标为 synthetic。SDK 与 CLI 的 0.1.0 已发布到 [crates.io](https://crates.io/crates/escope-cli/0.1.0)，Inspector 可从源码构建。
 
 ## 快速开始
 
 CLI 与设备侧库最低需要 Rust 1.88，桌面 Inspector 使用 eframe/egui 0.37，最低需要 Rust 1.95。已在 macOS arm64、Rust 1.99.1 上验证。默认命令行构建需要平台串口系统库；原生 LVGL 可选测试还需要 C 编译器和 libclang。
+
+从 crates.io 安装 CLI：
+
+```sh
+cargo install escope-cli --version 0.1.0 --locked
+escope --help
+```
+
+从源码构建并启动软件参考设备：
 
 ```sh
 cargo build -p escope-cli
@@ -50,7 +59,7 @@ bash scripts/check-c-api.sh
 
 C/C++ 消费者使用 EmbedScope 头文件和构建产物，无需跟随内部 Rust crate 的依赖版本。集成时仍需匹配头文件、目标 ABI、链接配置与设备协议；从源码构建产物时遵守对应 Rust 工具链要求。
 
-发布工具会生成包含头文件、SDK 源码与 Rust staticlib 包装工程的 C SDK 源码包，可以脱离仓库针对固件目标编译。crate 发布后，也可用自建的薄包装工程直接依赖 `escope-c-api`。不提供跨 MCU/ABI 通用的静态库。分发范围、本地打包与 Trusted Publishing 配置见 [发布说明](RELEASING.md)。
+发布工具会生成包含头文件、SDK 源码与 Rust staticlib 包装工程的 C SDK 源码包，可以脱离仓库针对固件目标编译。也可用自建的薄包装工程直接依赖 crates.io 上的 `escope-c-api`。不提供跨 MCU/ABI 通用的静态库。分发范围、本地打包与 Trusted Publishing 配置见 [发布说明](RELEASING.md)。
 
 团子 OS 的可选 `embedscope` feature 使用独立的第二路 USB CDC。先通过 `escope --json devices` 区分控制台与诊断接口，再使用 `--dtr on` 连接诊断端口。原控制台继续处理应用管理与 A/B OTA。接入结构和构建方式见 [团子 OS 接入](https://umbrella22.github.io/EmbedScope_website/integration/dango)。
 

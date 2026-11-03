@@ -13,6 +13,14 @@ EmbedScope 的六个 SDK/CLI crate 共享版本号。Inspector 使用相同产�
 | C SDK | GitHub Releases | 解压源码包，针对固件目标交叉编译 |
 | skills、文档 | Git 仓库、文档站 | 不作为 crate 发布 |
 
+## 已发布版本
+
+| 版本 | SDK 源码提交 | crates.io |
+| --- | --- | --- |
+| 0.1.0 | [`0bc53fc82401dd1f8253dbb8787f9360887008d8`](https://github.com/umbrella22/EmbedScope/commit/0bc53fc82401dd1f8253dbb8787f9360887008d8) | 六个 crate 均已发布，公开归档与源码提交一致，registry 消费验证通过 |
+
+公开 crate 的 `.cargo_vcs_info.json` 记录 SDK 源码提交。后续文档提交不改变发布身份；恢复发布或重新校验已发布版本时，检出表中的源码提交。
+
 ## 本地验证与打包
 
 需要 Rust 1.99.1、Python 3.11+、C 编译器、libclang 和裸机 RISC-V target。设备 SDK 与 CLI 的最低版本分别通过 Rust 1.88 检查，Inspector 通过 Rust 1.95 检查。Linux 的完整构建依赖见 `.github/actions/setup-build/action.yml`。
@@ -81,14 +89,14 @@ CRATES_IO_TRUSTED_PUBLISHING=true
 
 未设置或值不是 `true` 时，工作流跳过上传，仍要求同一提交的六个 crate 已在 crates.io 通过校验。无需配置长期 Cargo secret。认证由 `rust-lang/crates-io-auth-action` 完成，job 结束时撤销短期 token。
 
-第一次发布可以先在本机完成，再配置上述六个 Trusted Publisher。后续版本使用标签触发完整发布：
+0.1.0 已在本机完成首次发布，可以为六个 crate 配置上述 Trusted Publisher。需要发布 0.1.0 的二进制时，从对应的 SDK 源码提交创建标签：
 
 ```sh
-git tag -a v0.1.0 -m "EmbedScope 0.1.0"
+git tag -a v0.1.0 0bc53fc82401dd1f8253dbb8787f9360887008d8 -m "EmbedScope 0.1.0"
 git push origin v0.1.0
 ```
 
-版本号和 workspace 版本必须一致。手动恢复使用 Release 工作流的 `release_tag` 输入；保留原始标签，不覆盖已发布的公共资产。
+后续版本在完成版本修改、验证与提交后，为对应源码提交创建版本标签。标签版本号和 workspace 版本必须一致。手动恢复使用 Release 工作流的 `release_tag` 输入；保留原始标签，不覆盖已发布的公共资产。
 
 ## C/C++ 目标产物
 
