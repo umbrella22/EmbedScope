@@ -157,7 +157,7 @@ jobs:
         with:
           pattern: release-*
           path: target/collected
-      - name: Assemble and publish verified archives
+      - name: Publish verified Inspector, CLI and C SDK distributions
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/publish-github-release.py "$RELEASE_TAG" --collected target/collected

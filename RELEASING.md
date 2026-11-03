@@ -22,6 +22,10 @@
 
 每个 Release 包含 `SHA256SUMS`。归档内记录版本、源码提交、目标平台和依赖许可证。
 
+GitHub Release 提供 4 个 Inspector 分发包、4 个 CLI ZIP、1 个 C/C++ SDK ZIP 和
+`SHA256SUMS`，共 10 个资产。六个 `.crate` 保留在 CI 构建产物中，用于源码、哈希和
+registry 校验；Rust 包通过 crates.io 分发。Release 的 `SHA256SUMS` 覆盖其附带的分发包。
+
 ## 版本与本地验证
 
 修改 workspace 版本、内部依赖版本和 `Cargo.lock`，新增 `notes/vVERSION.md`。六个 crate 与 Inspector 的版本必须一致。已发布版本、tag 和公共资产不可覆盖。

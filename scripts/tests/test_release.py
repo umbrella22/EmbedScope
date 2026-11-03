@@ -371,13 +371,84 @@ class DistributionTests(unittest.TestCase):
     def test_published_release_assets_are_never_silently_replaced(self):
         with tempfile.TemporaryDirectory() as directory:
             stage = Path(directory)
-            (stage / "asset.zip").write_bytes(b"verified")
+            for name in github_release.public_asset_names(VERSION):
+                (stage / name).write_bytes(b"verified")
             result = type("Result", (), {"returncode": 0, "stdout": json.dumps({
                 "tagName": "v0.1.0", "isDraft": False, "isPrerelease": False, "assets": []})})()
             with patch.object(github_release, "gh", return_value=result) as gh:
                 with self.assertRaisesRegex(RuntimeError, "Published release is incomplete"):
                     github_release.publish_assets("v0.1.0", stage, VERSION)
                 self.assertEqual(gh.call_count, 1)
+
+
+class GitHubReleaseTests(unittest.TestCase):
+    def collected_artifacts(self, root):
+        groups = [("release-source", "verify",
+            [f"{name}-{VERSION}.crate" for name in PACKAGES] + [f"embedscope-c-sdk-{VERSION}.zip"],
+            ["cargo-package", "consumer-sdk", "consumer-cli-install", "consumer-cli-e2e",
+                "c-sdk-host-build", "c-sdk-native-libs", "c-sdk-c-link", "c-sdk-c-harness", "c-sdk-no-std"], None)]
+        for target in TARGETS:
+            commands = ["native-build", "shipped-cli-version", "shipped-cli-e2e",
+                "shipped-inspector-version", "shipped-inspector-smoke"]
+            if target.endswith("darwin"):
+                commands.append("shipped-inspector-signature")
+            if target.endswith("linux-gnu"):
+                commands.extend(["appimage-deploy", "appimage-build", "appimage-extract"])
+            groups.append((f"release-{target}", "binaries", distribution_names(VERSION, target), commands, target))
+        for group, receipt_name, names, commands, target in groups:
+            directory = root / group
+            directory.mkdir(parents=True)
+            for name in names:
+                (directory / name).write_bytes(name.encode())
+            (directory / f"{receipt_name}.json").write_text(json.dumps({
+                "version": VERSION, "commit": COMMIT, "dirty": False, "target": target,
+                "commands": [{"name": name, "exit": 0} for name in commands],
+                "artifacts": {name: {"sha256": sha256(name.encode())} for name in names}}))
+
+    def test_public_assets_and_checksums_contain_only_distributions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, assets = root / "collected", root / "public"
+            self.collected_artifacts(source)
+            github_release.collect(source, assets, VERSION, COMMIT)
+            expected = {"SHA256SUMS", f"embedscope-c-sdk-{VERSION}.zip"}
+            for target in TARGETS:
+                expected.update(distribution_names(VERSION, target))
+            self.assertEqual(len(expected), 10)
+            self.assertEqual({path.name for path in assets.iterdir()}, expected)
+            sums = dict((name, checksum) for checksum, name in
+                (line.split("  ", 1) for line in (assets / "SHA256SUMS").read_text().splitlines()))
+            self.assertEqual(set(sums), expected - {"SHA256SUMS"})
+            for name, checksum in sums.items():
+                self.assertEqual(checksum, sha256((assets / name).read_bytes()))
+            for package in PACKAGES:
+                name = f"{package}-{VERSION}.crate"
+                self.assertEqual((source / "release-source" / name).read_bytes(), name.encode())
+                self.assertFalse((assets / name).exists())
+
+    def test_registry_archives_still_require_valid_ci_checksums(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.collected_artifacts(root / "collected")
+            archive = root / "collected/release-source" / f"escope-agent-{VERSION}.crate"
+            archive.write_bytes(b"changed registry archive")
+            with self.assertRaisesRegex(RuntimeError, "Artifact checksum differs"):
+                github_release.collect(root / "collected", root / "public", VERSION, COMMIT)
+
+    def test_extra_or_missing_assets_are_rejected_before_github_access(self):
+        for change in ("extra-crate", "missing-cli"):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as directory:
+                stage = Path(directory)
+                for name in github_release.public_asset_names(VERSION):
+                    (stage / name).write_bytes(b"verified")
+                if change == "extra-crate":
+                    (stage / f"escope-agent-{VERSION}.crate").write_bytes(b"internal archive")
+                else:
+                    (stage / f"escope-{VERSION}-aarch64-apple-darwin.zip").unlink()
+                with patch.object(github_release, "gh") as gh:
+                    with self.assertRaisesRegex(RuntimeError, "GitHub Release asset set differs"):
+                        github_release.publish_assets(f"v{VERSION}", stage, VERSION)
+                    gh.assert_not_called()
 
 
 if __name__ == "__main__":

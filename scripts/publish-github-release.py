@@ -14,6 +14,13 @@ from release_support.common import PACKAGES, ROOT, release_version, require_tag,
 REPOSITORY = "umbrella22/EmbedScope"
 
 
+def public_asset_names(version):
+    names = {f"embedscope-c-sdk-{version}.zip", "SHA256SUMS"}
+    for target in TARGETS:
+        names.update(distribution_names(version, target))
+    return names
+
+
 def gh(*args, check=True):
     result = subprocess.run(["gh", *args, "--repo", REPOSITORY], cwd=ROOT, capture_output=True, text=True, check=False)
     if check and result.returncode:
@@ -22,6 +29,7 @@ def gh(*args, check=True):
 
 
 def collect(source, destination, version, commit):
+    public_assets = public_asset_names(version)
     groups = [("release-source", "verify", [f"{name}-{version}.crate" for name in PACKAGES]
         + [f"embedscope-c-sdk-{version}.zip"])]
     groups.extend((f"release-{target}", "binaries", distribution_names(version, target))
@@ -49,12 +57,18 @@ def collect(source, destination, version, commit):
             path = directory / filename
             if sha256(path.read_bytes()) != receipt["artifacts"][filename]["sha256"]:
                 raise RuntimeError(f"Artifact checksum differs: {filename}")
-            shutil.copy2(path, destination / filename)
+            # Registry archives remain CI evidence; only distributions are public assets.
+            if filename in public_assets:
+                shutil.copy2(path, destination / filename)
     checksums(destination)
 
 
 def publish_assets(tag, stage, version):
     files = {path.name: sha256(path.read_bytes()) for path in stage.iterdir() if path.is_file()}
+    expected = public_asset_names(version)
+    if files.keys() != expected:
+        raise RuntimeError(f"GitHub Release asset set differs: missing={sorted(expected - files.keys())}, "
+            f"unexpected={sorted(files.keys() - expected)}")
     result = gh("release", "view", tag, "--json", "tagName,isDraft,isPrerelease,assets", check=False)
     if result.returncode:
         if "release not found" not in result.stderr.lower() and "HTTP 404" not in result.stderr:
