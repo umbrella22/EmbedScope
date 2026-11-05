@@ -1,0 +1,13 @@
+[package]
+name = "escope-lvgl-ui-contract"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+escope-lvgl = { path = "../../crates/escope-lvgl", features = ["native"] }
+escope-protocol = { path = "../../crates/escope-protocol" }
+rs_lvgl = { version = "=0.4.0", default-features = false, features = ["alloc", "unsafe_no_autoinit"] }
+rs_lvgl_ui = { version = "=0.4.0", default-features = false, features = ["alloc", "no-autoinit"] }

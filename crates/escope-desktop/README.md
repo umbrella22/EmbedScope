@@ -14,6 +14,7 @@ cargo test -p escope-desktop
 | `src/app.rs` | Session state, incoming updates, page dispatch and saved preferences |
 | `src/app/chrome.rs` | Navigation, language menu, connection controls and status |
 | `src/app/inspector.rs` | Object tree, attributes, display selection, input and PNG controls |
+| `src/app/tree.rs` | Hierarchy order, ancestor-preserving search and paint-order selection |
 | `src/app/diagnostics.rs` | Logs, metrics and device pages |
 | `src/i18n.rs` | Locale registry, system-language matching, Fluent formatting and fallback |
 | `locales/*.ftl` | Embedded interface translations |

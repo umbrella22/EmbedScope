@@ -4,7 +4,7 @@ members = ["crates/*"]
 default-members = ["crates/escope-protocol", "crates/escope-agent", "crates/escope-host", "crates/escope-cli", "crates/escope-lvgl", "crates/escope-c-api"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT"
@@ -12,10 +12,10 @@ repository = "https://github.com/umbrella22/EmbedScope"
 homepage = "https://umbrella22.github.io/EmbedScope_website/"
 
 [workspace.dependencies]
-escope-protocol = { path = "crates/escope-protocol", version = "0.1.1" }
-escope-agent = { path = "crates/escope-agent", version = "0.1.1" }
-escope-host = { path = "crates/escope-host", version = "0.1.1" }
-escope-lvgl = { path = "crates/escope-lvgl", version = "0.1.1" }
+escope-protocol = { path = "crates/escope-protocol", version = "0.2.0" }
+escope-agent = { path = "crates/escope-agent", version = "0.2.0" }
+escope-host = { path = "crates/escope-host", version = "0.2.0" }
+escope-lvgl = { path = "crates/escope-lvgl", version = "0.2.0" }
 minicbor = { version = "2.3.1", default-features = false, features = ["derive"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "signal"] }
 tokio-serial = "5.5.0"

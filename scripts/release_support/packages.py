@@ -34,6 +34,8 @@ def archive_files(data, name, version):
         required.append("include/escope.h")
     if name == "escope-agent":
         required.append("examples/poll_device.rs")
+    if name == "escope-lvgl":
+        required.append("build.rs")
     for path in required:
         if path not in files:
             raise RuntimeError(f"{name} archive is missing {path}")
@@ -64,6 +66,47 @@ def package(context, allow_dirty=False):
         context.record(destination)
         archives[name] = destination
     return archives
+
+
+def check_native_dependencies(metadata, version, patches):
+    """Require one shared registry LVGL provider and the intended SDK source."""
+    expected = {"escope-protocol": version, "escope-lvgl": version,
+        "rs_lvgl": "0.4.0", "rs_lvgl_ui": "0.4.0", "rs_lvgl_sys": "0.4.0"}
+    registry = "registry+https://github.com/rust-lang/crates.io-index"
+    for name, required in expected.items():
+        packages = [package for package in metadata["packages"] if package["name"] == name]
+        if len(packages) != 1 or packages[0]["version"] != required:
+            raise RuntimeError(f"Native consumer requires exactly one {name} {required}")
+        package = packages[0]
+        if name in patches:
+            if package["source"] is not None or Path(package["manifest_path"]).parent != patches[name]:
+                raise RuntimeError(f"Native consumer did not use the extracted {name} archive")
+        elif package["source"] != registry:
+            raise RuntimeError(f"Native consumer did not resolve {name} from crates.io")
+
+
+def native_consumer(context, root, patches, patch):
+    fixture = root / "native-ui"
+    (fixture / "src").mkdir(parents=True)
+    (fixture / "Cargo.toml").write_text('''[package]
+name = "escope-release-native-ui"
+version = "0.0.0"
+edition = "2021"
+[workspace]
+[dependencies]
+''' + f'escope-protocol = "={context.version}"\n'
+        + f'escope-lvgl = {{ version = "={context.version}", features = ["native"] }}\n'
+        + '''rs_lvgl = { version = "=0.4.0", default-features = false, features = ["alloc", "unsafe_no_autoinit"] }
+rs_lvgl_ui = { version = "=0.4.0", default-features = false, features = ["alloc", "no-autoinit"] }
+''' + patch)
+    (fixture / "src/lib.rs").write_bytes((ROOT / "examples/rs-lvgl-ui/src/lib.rs").read_bytes())
+    metadata = json.loads(subprocess.check_output(["cargo", "metadata", "--format-version=1"],
+        cwd=fixture, env=context.env, stderr=subprocess.DEVNULL))
+    check_native_dependencies(metadata, context.version, patches)
+    context.run("consumer-native-ui", ["cargo", "test", "--manifest-path", fixture / "Cargo.toml",
+        "--locked", "--", "--test-threads=1"])
+    context.receipt["native_provider"] = {"name": "rs_lvgl_sys", "version": "0.4.0", "source": "crates.io"}
+    context.save()
 
 
 def consumer(context, archives=None):
@@ -116,6 +159,7 @@ def consumer(context, archives=None):
                 raise RuntimeError("Consumer did not resolve EmbedScope from crates.io")
         if found != set(PACKAGES) - {"escope-cli"}:
             raise RuntimeError("Consumer dependency graph is incomplete")
+        native_consumer(context, root, patches, patch)
         install = root / "installed"
         if patches:
             # Cargo install reads configuration from its caller, not the package.

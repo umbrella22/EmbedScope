@@ -3,10 +3,19 @@
 use crate::{TreeSource, UiNode};
 use core::{marker::PhantomData, ptr::NonNull};
 use escope_protocol::Status;
-use rs_lvgl::sys;
+use rs_lvgl_sys as sys;
+
+// SAFETY: the generated classifier references only class descriptors exported
+// by the effective native provider. Its caller guarantees a live object and
+// exclusive UI-thread access for the complete read.
+include!(concat!(env!("OUT_DIR"), "/native_kind.rs"));
 
 /// A bounded native tree walk. All access remains on the constructing thread.
 /// Call changed after updates and before serving the next tree request.
+///
+/// Reports configured widget classes and plain-object row/column/grid layouts.
+/// Names are empty; View keys and component metadata require a TreeSource
+/// supplied by the application. IDs are scoped to a session and revision.
 pub struct NativeTree<const N: usize> {
     root: NonNull<sys::lv_obj_t>,
     revision: u32,
@@ -77,7 +86,7 @@ impl<const N: usize> TreeSource for NativeTree<N> {
                 // IDs are valid only with this response's revision/session.
                 id: cursor as u32 + 1,
                 parent: parents[cursor],
-                kind: "lv_obj",
+                kind: object_kind(object),
                 name: "",
                 x: area.x1,
                 y: area.y1,
@@ -100,12 +109,58 @@ mod tests {
     use escope_protocol::{decode_payload, encode_payload, TreeQuery};
 
     #[test]
+    fn reports_native_widgets_and_layouts_without_changing_identity() {
+        // SAFETY: exclusive, synchronous LVGL access; the adapter is dropped
+        // before display deletion and deinitialization.
+        unsafe {
+            sys::lv_init();
+            let display = NonNull::new(sys::lv_display_create(64, 64)).unwrap();
+            let screen = NonNull::new(sys::lv_screen_active()).unwrap();
+            let column = sys::lv_obj_create(screen.as_ptr());
+            sys::lv_obj_set_flex_flow(column, sys::lv_flex_flow_t_LV_FLEX_FLOW_COLUMN_WRAP_REVERSE);
+            let row = sys::lv_obj_create(screen.as_ptr());
+            sys::lv_obj_set_flex_flow(row, sys::lv_flex_flow_t_LV_FLEX_FLOW_ROW_REVERSE);
+            let grid = sys::lv_obj_create(screen.as_ptr());
+            sys::lv_obj_set_style_layout(grid, sys::lv_layout_t_LV_LAYOUT_GRID as u16, 0);
+            let button = sys::lv_button_create(column);
+            // A widget can itself have a layout. Its class must take priority.
+            sys::lv_obj_set_flex_flow(button, sys::lv_flex_flow_t_LV_FLEX_FLOW_ROW);
+            sys::lv_label_create(button);
+            sys::lv_obj_update_layout(screen.as_ptr());
+            {
+                let mut tree = NativeTree::<16>::new(screen);
+                for (cursor, kind, parent) in [
+                    (0, "lv_obj", 0),
+                    (1, "column", 1),
+                    (2, "row", 1),
+                    (3, "grid", 1),
+                    (4, "button", 2),
+                    (5, "label", 5),
+                ] {
+                    let node = tree.read_node(cursor).unwrap();
+                    assert_eq!(node.kind, kind, "cursor {cursor}");
+                    assert_eq!(
+                        (node.id, node.parent, node.revision),
+                        (cursor + 1, parent, 1)
+                    );
+                    assert!(
+                        node.name.is_empty(),
+                        "semantic names remain application-owned"
+                    );
+                }
+            }
+            sys::lv_display_delete(display.as_ptr());
+            sys::lv_deinit();
+        }
+    }
+
+    #[test]
     fn reads_real_native_tree_and_rejects_old_revision() {
-        rs_lvgl::init();
-        let display = rs_lvgl::Display::register::<_, { 64 * 64 }>(64, 64, |_| {}).unwrap();
         // SAFETY: this test has exclusive LVGL access and tears down the
         // adapter before display deletion/deinitialization.
         unsafe {
+            sys::lv_init();
+            let display = NonNull::new(sys::lv_display_create(64, 64)).unwrap();
             let screen = NonNull::new(sys::lv_screen_active()).unwrap();
             let child = sys::lv_obj_create(screen.as_ptr());
             sys::lv_obj_set_pos(child, 3, 4);
@@ -131,8 +186,8 @@ mod tests {
                 bridge.source_mut().changed().unwrap();
                 assert_eq!(bridge.tree(&request[..n], &mut reply), Err(Status::Stale));
             }
-            display.delete();
-            rs_lvgl::deinit();
+            sys::lv_display_delete(display.as_ptr());
+            sys::lv_deinit();
         }
     }
 }

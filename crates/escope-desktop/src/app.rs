@@ -18,6 +18,7 @@ mod diagnostics;
 mod inspector;
 #[cfg(test)]
 mod tests;
+mod tree;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum View {
@@ -55,6 +56,7 @@ pub struct Inspector {
     hello: Option<Hello>,
     nodes: Vec<UiNode>,
     depths: HashMap<u32, usize>,
+    tree_order: Vec<usize>,
     dtr: bool,
     selected: Option<u32>,
     metrics: Option<Metrics>,
@@ -109,6 +111,7 @@ impl Inspector {
             hello: None,
             nodes: Vec::new(),
             depths: HashMap::new(),
+            tree_order: Vec::new(),
             dtr: false,
             selected: None,
             metrics: None,
@@ -151,6 +154,7 @@ impl Inspector {
         self.hello = None;
         self.nodes.clear();
         self.depths.clear();
+        self.tree_order.clear();
         self.selected = None;
         self.metrics = None;
         self.capture = None;
@@ -188,6 +192,7 @@ impl Inspector {
                         self.selected = None;
                     }
                     self.depths = escope_host::tree_depths(&nodes).unwrap_or_default();
+                    self.tree_order = tree::preorder(&nodes);
                     self.nodes = nodes;
                     self.metrics = metrics;
                     self.texture = capture.as_ref().map(|capture| {

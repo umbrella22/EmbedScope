@@ -3,6 +3,7 @@ use eframe::Storage as _;
 use escope_host::protocol::{capability, CaptureMeta, PixelFormat};
 
 mod layout;
+mod tree;
 
 fn fixture() -> (
     Inspector,

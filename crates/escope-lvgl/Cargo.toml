@@ -11,8 +11,10 @@ description = "Host-provided LVGL access bridge for EmbedScope"
 
 [dependencies]
 escope-protocol.workspace = true
-rs_lvgl = { version = "0.3.1", default-features = false, features = ["alloc", "unsafe_no_autoinit"], optional = true }
+# Share the application's single links = "lvgl" provider. The native walker
+# only needs C bindings, including their effective target configuration.
+rs_lvgl_sys = { version = "0.4.0", optional = true }
 
 [features]
 default = []
-native = ["dep:rs_lvgl"]
+native = ["dep:rs_lvgl_sys"]

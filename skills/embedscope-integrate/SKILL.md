@@ -27,7 +27,7 @@ description: 将 EmbedScope Agent 接入 Rust 或 C/C++ 嵌入式工程，配置
 
 LVGL 请求在 UI 线程安全点执行；通信任务仅投递请求/接收结果。Backend 同步返回，当前 SDK 不自动重试 Busy。不要依赖通信任务直接访问 LVGL 或等待它自己完成异步工作。
 
-优先复用宿主的 LVGL 实例、配置与 native 供应者。默认 UiBridge 不链接 LVGL；native feature 使用 rs_lvgl 供应者。NativeTree 变化后 changed，root 销毁前停止读取；节点 ID 与 session/revision 配对。自定义 NodeRegistry 在删除钩子 remove，禁止已释放指针继续解析。
+优先复用宿主的 LVGL 实例、配置与 native 供应者。默认 UiBridge 不链接 LVGL；native feature 使用 rs_lvgl_sys 0.4.0 供应者。NativeTree 变化后 changed，root 销毁前停止读取；节点 ID 与 session/revision 配对。自定义 NodeRegistry 在删除钩子 remove，禁止已释放指针继续解析。
 
 显示捕获独立于 LVGL 树，覆盖平台实际输出路径；固定 capture/frame ID、像素格式、stride 和数据生命周期。输入通过应用统一路由成对产生 press/release，reset 释放未完成输入。先完成最小能力，逐项验证再声明 capability。
 

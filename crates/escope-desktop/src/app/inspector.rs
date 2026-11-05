@@ -41,16 +41,15 @@ impl Inspector {
                 );
                 ui.add_space(8.0);
                 let query = self.tree_query.trim().to_lowercase();
+                let included =
+                    (!query.is_empty()).then(|| tree::matching_paths(&self.nodes, &query));
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         let mut shown = 0;
-                        for node in &self.nodes {
-                            if !query.is_empty()
-                                && !format!("{} {} #{}", node.kind, node.name, node.id)
-                                    .to_lowercase()
-                                    .contains(&query)
-                            {
+                        for &index in &self.tree_order {
+                            let node = &self.nodes[index];
+                            if included.as_ref().is_some_and(|ids| !ids.contains(&node.id)) {
                                 continue;
                             }
                             shown += 1;
@@ -663,10 +662,11 @@ fn display_point(rect: egui::Rect, source: egui::Vec2, position: egui::Pos2) -> 
     Some((point.x.floor() as u32, point.y.floor() as u32))
 }
 
-fn node_at(nodes: &[UiNode], x: u32, y: u32) -> Option<u32> {
-    nodes
-        .iter()
+pub(super) fn node_at(nodes: &[UiNode], x: u32, y: u32) -> Option<u32> {
+    tree::preorder(nodes)
+        .into_iter()
         .rev()
+        .map(|index| &nodes[index])
         .find(|node| {
             x as i64 >= node.x as i64
                 && y as i64 >= node.y as i64

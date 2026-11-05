@@ -40,7 +40,7 @@ def collect(source, destination, version, commit):
         receipt = json.loads((directory / f"{name}.json").read_text())
         if receipt["version"] != version or receipt["commit"] != commit or receipt["dirty"]:
             raise RuntimeError(f"{group} source identity differs from the clean version tag")
-        required = ({"cargo-package", "consumer-sdk", "consumer-cli-install", "consumer-cli-e2e",
+        required = ({"cargo-package", "consumer-sdk", "consumer-native-ui", "consumer-cli-install", "consumer-cli-e2e",
             "c-sdk-host-build", "c-sdk-native-libs", "c-sdk-c-link", "c-sdk-c-harness", "c-sdk-no-std"}
             if name == "verify" else {"native-build", "shipped-cli-version", "shipped-cli-e2e",
                 "shipped-inspector-version", "shipped-inspector-smoke"})

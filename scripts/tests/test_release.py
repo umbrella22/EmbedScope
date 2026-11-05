@@ -18,7 +18,7 @@ SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 
 from release_support.common import PACKAGES, release_version, sha256
-from release_support.packages import archive_files
+from release_support.packages import archive_files, check_native_dependencies
 from release_support.registry import reconcile_archive
 from release_support.binaries import (archive_directory, binaries, checksums, extract_zip,
     distribution_names, prepare_windows_smoke_mesa, smoke_inspector, TARGETS, WINDOWS_SMOKE_MESA)
@@ -116,6 +116,38 @@ class ArchiveTests(unittest.TestCase):
     def test_generated_lockfile_does_not_change_source_identity(self):
         local, remote = crate({"Cargo.lock": b"local"}), crate({"Cargo.lock": b"registry"})
         reconcile_archive(local, remote, sha256(remote), "escope-protocol", VERSION, COMMIT)
+
+
+class NativeConsumerTests(unittest.TestCase):
+    def registry_metadata(self):
+        return {"packages": [{"name": name, "version": version,
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "manifest_path": f"/registry/{name}/Cargo.toml"}
+            for name, version in [("escope-protocol", VERSION), ("escope-lvgl", VERSION),
+                ("rs_lvgl", "0.4.0"), ("rs_lvgl_ui", "0.4.0"), ("rs_lvgl_sys", "0.4.0")]]}
+
+    def test_mixed_native_provider_versions_are_rejected(self):
+        value = self.registry_metadata()
+        value["packages"].append({**value["packages"][-1], "version": "0.3.1"})
+        with self.assertRaisesRegex(RuntimeError, "exactly one rs_lvgl_sys"):
+            check_native_dependencies(value, VERSION, {})
+
+    def test_registry_consumer_rejects_local_sdk_and_provider(self):
+        for name in ("escope-lvgl", "rs_lvgl_sys"):
+            with self.subTest(name=name):
+                value = self.registry_metadata()
+                next(package for package in value["packages"] if package["name"] == name)["source"] = None
+                with self.assertRaisesRegex(RuntimeError, f"resolve {name} from crates.io"):
+                    check_native_dependencies(value, VERSION, {})
+
+    def test_archive_consumer_requires_the_extracted_sdk(self):
+        value = self.registry_metadata()
+        patches = {"escope-lvgl": Path("/extracted/escope-lvgl")}
+        with self.assertRaisesRegex(RuntimeError, "extracted escope-lvgl archive"):
+            check_native_dependencies(value, VERSION, patches)
+        package = next(package for package in value["packages"] if package["name"] == "escope-lvgl")
+        package.update(source=None, manifest_path="/extracted/escope-lvgl/Cargo.toml")
+        check_native_dependencies(value, VERSION, patches)
 
 
 class DistributionTests(unittest.TestCase):
@@ -337,7 +369,7 @@ class DistributionTests(unittest.TestCase):
                 (source / name).write_bytes(b"source")
             (source / "verify.json").write_text(json.dumps({"version": VERSION, "commit": COMMIT,
                 "dirty": False, "commands": [{"name": name, "exit": 0} for name in [
-                    "cargo-package", "consumer-sdk", "consumer-cli-install", "consumer-cli-e2e",
+                    "cargo-package", "consumer-sdk", "consumer-native-ui", "consumer-cli-install", "consumer-cli-e2e",
                     "c-sdk-host-build", "c-sdk-native-libs", "c-sdk-c-link", "c-sdk-c-harness", "c-sdk-no-std"]],
                 "artifacts": {name: {"sha256": sha256(b"source")} for name in names}}))
             target = sorted(TARGETS)[0]
@@ -385,7 +417,7 @@ class GitHubReleaseTests(unittest.TestCase):
     def collected_artifacts(self, root):
         groups = [("release-source", "verify",
             [f"{name}-{VERSION}.crate" for name in PACKAGES] + [f"embedscope-c-sdk-{VERSION}.zip"],
-            ["cargo-package", "consumer-sdk", "consumer-cli-install", "consumer-cli-e2e",
+            ["cargo-package", "consumer-sdk", "consumer-native-ui", "consumer-cli-install", "consumer-cli-e2e",
                 "c-sdk-host-build", "c-sdk-native-libs", "c-sdk-c-link", "c-sdk-c-harness", "c-sdk-no-std"], None)]
         for target in TARGETS:
             commands = ["native-build", "shipped-cli-version", "shipped-cli-e2e",
@@ -433,6 +465,17 @@ class GitHubReleaseTests(unittest.TestCase):
             archive = root / "collected/release-source" / f"escope-agent-{VERSION}.crate"
             archive.write_bytes(b"changed registry archive")
             with self.assertRaisesRegex(RuntimeError, "Artifact checksum differs"):
+                github_release.collect(root / "collected", root / "public", VERSION, COMMIT)
+
+    def test_native_ui_consumer_is_required_for_asset_collection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.collected_artifacts(root / "collected")
+            receipt = root / "collected/release-source/verify.json"
+            value = json.loads(receipt.read_text())
+            value["commands"] = [command for command in value["commands"] if command["name"] != "consumer-native-ui"]
+            receipt.write_text(json.dumps(value))
+            with self.assertRaisesRegex(RuntimeError, "validation is incomplete"):
                 github_release.collect(root / "collected", root / "public", VERSION, COMMIT)
 
     def test_extra_or_missing_assets_are_rejected_before_github_access(self):

@@ -6,8 +6,8 @@ Implement `Backend` for device identity and the capabilities supported by the fi
 
 ```toml
 [dependencies]
-escope-agent = "0.1.0"
-escope-protocol = "0.1.0"
+escope-agent = "0.2.0"
+escope-protocol = "0.2.0"
 ```
 
 The packaged `poll_device` example demonstrates the transport loop on a host:

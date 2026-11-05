@@ -40,7 +40,7 @@ python3 scripts/release.py verify
 python3 scripts/release.py binaries
 ```
 
-`verify` 构建六个 `.crate`，再通过独立消费工程验证 SDK 与 CLI。C SDK 使用生成的工程运行真实 C harness，并构建裸机 RISC-V 静态库。
+`verify` 构建六个 `.crate`，再通过独立消费工程验证 SDK、原生 LVGL 适配器与 CLI。原生消费工程从解包后的 SDK 和 registry `rs_lvgl` / `rs_lvgl_ui` 0.4.0 构建真实内存显示，检查节点类型、层级、几何和 revision，并要求单一 `rs_lvgl_sys` 0.4.0 provider。C SDK 使用生成的工程运行真实 C harness，并构建裸机 RISC-V 静态库。
 
 `binaries` 在匹配的本机平台构建 release 产物，解压 CLI 后执行完整命令闭环，并启动分发包内的真实 Inspector 完成窗口渲染检查。macOS 还校验解压后的代码签名；Linux 解出实际 AppImage，在 Xvfb 中渲染。AppImage 构建工具使用固定版本与 SHA-256。
 
@@ -73,7 +73,7 @@ git push origin vVERSION
 1. 校验 tag、workspace 版本和远程 master 的源码身份。
 2. 运行完整源码验证，在 macOS arm64/x64、Linux x64 和 Windows x64 分别构建与测试分发包。
 3. 使用 OIDC 按 `protocol → agent → lvgl → c-api → host → cli` 顺序发布六个 crate。
-4. 下载公开 `.crate`，比对 registry checksum、全部源码和 `.cargo_vcs_info.json` 的提交，再运行 registry 消费工程。
+4. 下载公开 `.crate`，比对 registry checksum、全部源码和 `.cargo_vcs_info.json` 的提交，再运行完全使用 crates.io 依赖的 SDK、原生 UI 与 CLI 消费工程。
 5. 核对各平台构建记录、窗口检查和资产哈希，创建草稿 GitHub Release。
 6. 上传并重新下载比对全部资产，确认一致后公开 Release。
 
