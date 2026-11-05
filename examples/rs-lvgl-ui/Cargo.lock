@@ -117,7 +117,7 @@ checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
 name = "escope-lvgl"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "escope-protocol",
  "rs_lvgl_sys",
@@ -135,7 +135,7 @@ dependencies = [
 
 [[package]]
 name = "escope-protocol"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "minicbor",
 ]
@@ -296,9 +296,9 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rs_lvgl"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc13518c195e8d4aeac213cd1fda6a270186fe2b2491e3b35ef00fc5c324d87a"
+checksum = "25f74dfeb554d0feef90f6478db64a160ef585e35d55b9ca012a423279e88d97"
 dependencies = [
  "bitflags",
  "cstr_core",
@@ -313,9 +313,9 @@ dependencies = [
 
 [[package]]
 name = "rs_lvgl_codegen"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f518458d45dc0381702cdc29e6e2d29b2322c7a03d6b2c8434c23602fc5b75d8"
+checksum = "5e863901af1ceda1b1eb8588c808ea19bed3819799ed809f1a0e49a8c791c61e"
 dependencies = [
  "Inflector",
  "lazy_static",
@@ -327,9 +327,9 @@ dependencies = [
 
 [[package]]
 name = "rs_lvgl_sys"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a115765549ae3d8099165d36f1f3524418cdecf0aa98f1ecee43040ae2a2e03"
+checksum = "d08bd1f2206e43c48666e6ac9ce76fe72d9b4253ffdf890b46d62dc7f69fe924"
 dependencies = [
  "bindgen",
  "cc",
@@ -338,9 +338,9 @@ dependencies = [
 
 [[package]]
 name = "rs_lvgl_ui"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d60b667b928e6e0ed8dd62f56767e6e8001349ec0fbaac9dc8194e7a8f6623c1"
+checksum = "cfea935f559c8ce251959f3ec9fb05fa9553b26b926e656a9f3ad790b7d8d8e9"
 dependencies = [
  "cstr_core",
  "cty",

@@ -6,7 +6,7 @@ The crate provides COBS framing, CRC validation, a bounded frame decoder, and ty
 
 ```toml
 [dependencies]
-escope-protocol = "0.2.0"
+escope-protocol = "0.3.0"
 ```
 
 Applications normally pair this crate with `escope-agent` on the device or `escope-host` on the host. Crate versions and the wire protocol major are separate: protocol compatibility is negotiated during Hello.

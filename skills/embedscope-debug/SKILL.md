@@ -9,7 +9,7 @@ description: 使用 EmbedScope 的 escope CLI 或主机 SDK 调试已接入 Agen
 
 ## 工具与连接
 
-- 优先使用用户提供的 `escope`、设备路径和工程位置。缺少命令时，从 [GitHub Releases](https://github.com/umbrella22/EmbedScope/releases/latest) 下载匹配平台/架构的 CLI ZIP，解压后直接执行；将目录加入 PATH 后可在任意位置使用 `escope`。已有 Rust 环境时可选择 `cargo install escope-cli --version '=0.2.0' --locked`。开发源码时在实际 checkout 执行 `cargo build -p escope-cli`。
+- 优先使用用户提供的 `escope`、设备路径和工程位置。缺少命令时，从 [GitHub Releases](https://github.com/umbrella22/EmbedScope/releases/latest) 下载匹配平台/架构的 CLI ZIP，解压后直接执行；将目录加入 PATH 后可在任意位置使用 `escope`。已有 Rust 环境时可选择 `cargo install escope-cli --version '=0.3.0' --locked`。开发源码时在实际 checkout 执行 `cargo build -p escope-cli`。
 - `escope devices` 只枚举串口；多个端口时结合用户提供的设备身份选择。TCP 使用 `--device tcp://host:port`，串口使用 `--device /dev/...`。串口被占用时处理当前占用来源，不自动终止其他应用。
 - 连接后先运行 `escope --device ENDPOINT --json info`，保存设备 build_id、boot_id、session 与 capabilities。软件参考设备的 model 为 `software / synthetic`，其指标和像素不能证明真实板端行为。
 - 读取 [命令与结果合同](references/commands.md) 选择实际支持的能力。CLI 与固件版本不一致时以实际 `--help`、hello 和源码定义为准。

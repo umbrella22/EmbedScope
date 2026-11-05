@@ -4,6 +4,7 @@ import io
 import json
 import os
 from pathlib import Path, PurePosixPath
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -71,7 +72,7 @@ def package(context, allow_dirty=False):
 def check_native_dependencies(metadata, version, patches):
     """Require one shared registry LVGL provider and the intended SDK source."""
     expected = {"escope-protocol": version, "escope-lvgl": version,
-        "rs_lvgl": "0.4.0", "rs_lvgl_ui": "0.4.0", "rs_lvgl_sys": "0.4.0"}
+        "rs_lvgl": "0.5.0", "rs_lvgl_ui": "0.5.0", "rs_lvgl_sys": "0.5.0"}
     registry = "registry+https://github.com/rust-lang/crates.io-index"
     for name, required in expected.items():
         packages = [package for package in metadata["packages"] if package["name"] == name]
@@ -93,19 +94,21 @@ name = "escope-release-native-ui"
 version = "0.0.0"
 edition = "2021"
 [workspace]
+[features]
+composition = ["rs_lvgl_ui/components", "rs_lvgl_ui/widget-slider", "rs_lvgl_ui/widget-switch"]
 [dependencies]
 ''' + f'escope-protocol = "={context.version}"\n'
         + f'escope-lvgl = {{ version = "={context.version}", features = ["native"] }}\n'
-        + '''rs_lvgl = { version = "=0.4.0", default-features = false, features = ["alloc", "unsafe_no_autoinit"] }
-rs_lvgl_ui = { version = "=0.4.0", default-features = false, features = ["alloc", "no-autoinit"] }
+        + '''rs_lvgl = { version = "=0.5.0", default-features = false, features = ["alloc", "unsafe_no_autoinit"] }
+rs_lvgl_ui = { version = "=0.5.0", default-features = false, features = ["alloc", "no-autoinit"] }
 ''' + patch)
-    (fixture / "src/lib.rs").write_bytes((ROOT / "examples/rs-lvgl-ui/src/lib.rs").read_bytes())
+    shutil.copytree(ROOT / "examples/rs-lvgl-ui/src", fixture / "src", dirs_exist_ok=True)
     metadata = json.loads(subprocess.check_output(["cargo", "metadata", "--format-version=1"],
         cwd=fixture, env=context.env, stderr=subprocess.DEVNULL))
     check_native_dependencies(metadata, context.version, patches)
     context.run("consumer-native-ui", ["cargo", "test", "--manifest-path", fixture / "Cargo.toml",
-        "--locked", "--", "--test-threads=1"])
-    context.receipt["native_provider"] = {"name": "rs_lvgl_sys", "version": "0.4.0", "source": "crates.io"}
+        "--features", "composition", "--locked", "--", "--test-threads=1"])
+    context.receipt["native_provider"] = {"name": "rs_lvgl_sys", "version": "0.5.0", "source": "crates.io"}
     context.save()
 
 

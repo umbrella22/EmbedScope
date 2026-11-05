@@ -1,11 +1,45 @@
 //! Native inspection contract with the published rs_lvgl_ui API.
 
+#[cfg(all(test, feature = "composition"))]
+mod composition;
+
 #[cfg(test)]
 mod tests {
     use core::ptr::NonNull;
     use escope_lvgl::{native::NativeTree, UiBridge};
     use escope_protocol::{decode_payload, encode_payload, TreeQuery, UiNode};
     use rs_lvgl_ui::prelude::*;
+
+    pub(super) type Node = (u32, u32, String, i32, i32, u32, u32, u32);
+
+    pub(super) fn snapshot<const N: usize>(
+        bridge: &mut UiBridge<NativeTree<N>>,
+    ) -> (Vec<Node>, TreeQuery) {
+        let mut query = TreeQuery::default();
+        let mut nodes = Vec::new();
+        loop {
+            let mut request = [0; 64];
+            let n = encode_payload(&query, &mut request).unwrap();
+            let mut response = [0; 1024];
+            let n = bridge.tree(&request[..n], &mut response).unwrap();
+            let node: UiNode<'_> = decode_payload(&response[..n]).unwrap();
+            assert!(node.name.is_empty());
+            nodes.push((
+                node.id,
+                node.parent,
+                node.kind.to_string(),
+                node.x,
+                node.y,
+                node.width,
+                node.height,
+                node.flags,
+            ));
+            query.revision = node.revision;
+            let Some(next) = node.next_cursor else { break };
+            query.cursor = next;
+        }
+        (nodes, query)
+    }
 
     #[derive(Clone)]
     enum CounterAction {
@@ -52,29 +86,7 @@ mod tests {
             let screen = NonNull::new(rs_lvgl::sys::lv_screen_active()).unwrap();
             {
                 let mut bridge = UiBridge::new(NativeTree::<32>::new(screen));
-                let mut query = TreeQuery::default();
-                let mut nodes = Vec::new();
-                loop {
-                    let mut request = [0; 64];
-                    let n = encode_payload(&query, &mut request).unwrap();
-                    let mut response = [0; 1024];
-                    let n = bridge.tree(&request[..n], &mut response).unwrap();
-                    let node: UiNode<'_> = decode_payload(&response[..n]).unwrap();
-                    nodes.push((
-                        node.id,
-                        node.parent,
-                        node.kind.to_string(),
-                        node.x,
-                        node.y,
-                        node.width,
-                        node.height,
-                    ));
-                    query.revision = node.revision;
-                    let Some(next) = node.next_cursor else {
-                        break;
-                    };
-                    query.cursor = next;
-                }
+                let (nodes, query) = snapshot(&mut bridge);
                 assert_eq!(nodes[0].2, "lv_obj");
                 let column = nodes.iter().find(|n| n.2 == "column").unwrap();
                 let row = nodes.iter().find(|n| n.2 == "row").unwrap();

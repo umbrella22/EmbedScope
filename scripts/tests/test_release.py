@@ -124,7 +124,7 @@ class NativeConsumerTests(unittest.TestCase):
             "source": "registry+https://github.com/rust-lang/crates.io-index",
             "manifest_path": f"/registry/{name}/Cargo.toml"}
             for name, version in [("escope-protocol", VERSION), ("escope-lvgl", VERSION),
-                ("rs_lvgl", "0.4.0"), ("rs_lvgl_ui", "0.4.0"), ("rs_lvgl_sys", "0.4.0")]]}
+                ("rs_lvgl", "0.5.0"), ("rs_lvgl_ui", "0.5.0"), ("rs_lvgl_sys", "0.5.0")]]}
 
     def test_mixed_native_provider_versions_are_rejected(self):
         value = self.registry_metadata()

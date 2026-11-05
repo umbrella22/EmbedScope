@@ -822,14 +822,14 @@ checksum = "0b5343afd4a8365a643ac588dab4cf234a190c7f6c88c9f6dd6ffe00837661b7"
 
 [[package]]
 name = "escope-agent"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "escope-protocol",
 ]
 
 [[package]]
 name = "escope-c-api"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "escope-agent",
  "escope-protocol",
@@ -837,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "escope-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -850,7 +850,7 @@ dependencies = [
 
 [[package]]
 name = "escope-desktop"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "eframe",
  "escope-host",
@@ -863,7 +863,7 @@ dependencies = [
 
 [[package]]
 name = "escope-host"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "escope-agent",
  "escope-protocol",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "escope-lvgl"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "escope-protocol",
  "rs_lvgl_sys",
@@ -887,7 +887,7 @@ dependencies = [
 
 [[package]]
 name = "escope-protocol"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "minicbor",
 ]
@@ -2528,9 +2528,9 @@ dependencies = [
 
 [[package]]
 name = "rs_lvgl_sys"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a115765549ae3d8099165d36f1f3524418cdecf0aa98f1ecee43040ae2a2e03"
+checksum = "d08bd1f2206e43c48666e6ac9ce76fe72d9b4253ffdf890b46d62dc7f69fe924"
 dependencies = [
  "bindgen",
  "cc",

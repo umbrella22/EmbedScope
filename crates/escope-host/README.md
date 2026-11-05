@@ -6,7 +6,7 @@ Rust host SDK for [EmbedScope](https://github.com/umbrella22/EmbedScope). The CL
 
 ```toml
 [dependencies]
-escope-host = "0.2.0"
+escope-host = "0.3.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
