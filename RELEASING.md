@@ -40,7 +40,7 @@ python3 scripts/release.py verify
 python3 scripts/release.py binaries
 ```
 
-`verify` 构建六个 `.crate`，再通过独立消费工程验证 SDK、原生 LVGL 适配器与 CLI。原生消费工程从解包后的 SDK 和 registry `rs_lvgl` / `rs_lvgl_ui` 0.5.0 构建真实内存显示，检查节点类型、层级、几何和 revision，并要求单一 `rs_lvgl_sys` 0.5.0 provider。C SDK 使用生成的工程运行真实 C harness，并构建裸机 RISC-V 静态库。
+`verify` 构建六个 `.crate`，再通过独立消费工程验证 SDK、原生 LVGL 适配器与 CLI。原生消费工程从解包后的 SDK 和 registry `rs_lvgl` / `rs_lvgl_ui` 0.6.0 构建真实内存显示，检查节点类型、层级、几何和 revision，以及 0.6 构造器、原生指针输入和显示刷新，并要求单一 `rs_lvgl_sys` 0.6.0 provider。C SDK 使用生成的工程运行真实 C harness，并构建裸机 RISC-V 静态库。
 
 `binaries` 在匹配的本机平台构建 release 产物，解压 CLI 后执行完整命令闭环，并启动分发包内的真实 Inspector 完成窗口渲染检查。macOS 还校验解压后的代码签名；Linux 解出实际 AppImage，在 Xvfb 中渲染。AppImage 构建工具使用固定版本与 SHA-256。
 

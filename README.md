@@ -57,7 +57,7 @@ C/C++ 固件从 Release 下载 C SDK ZIP，使用配套头文件和包装工程�
 已有 Rust 环境时，也可从 crates.io 安装 CLI：
 
 ```sh
-cargo install escope-cli --version '=0.3.0' --locked
+cargo install escope-cli --version '=0.4.0' --locked
 ```
 
 CLI 与设备侧库最低需要 Rust 1.88；Inspector 使用 eframe/egui 0.37，最低需要 Rust 1.95。平台构建依赖见[构建与测试](https://umbrella22.github.io/EmbedScope_website/development/testing)。
@@ -68,7 +68,7 @@ cargo run -p escope-desktop -- tcp://127.0.0.1:9337
 bash scripts/check.sh
 ```
 
-`check.sh` 检查 workspace、真实 LVGL 内存显示、`rs_lvgl_ui` 0.5 消费者、裁剪后的 LVGL 配置、RISC-V `no_std`、CLI 独立进程和 C harness。桌面源码结构与语言扩展见[桌面开发说明](crates/escope-desktop/README.md)，分发与发布流程见[发布说明](RELEASING.md)。
+`check.sh` 检查 workspace、真实 LVGL 内存显示、`rs_lvgl_ui` 0.6 消费者、裁剪后的 LVGL 配置、RISC-V `no_std`、CLI 独立进程和 C harness。桌面源码结构与语言扩展见[桌面开发说明](crates/escope-desktop/README.md)，分发与发布流程见[发布说明](RELEASING.md)。
 
 ## 文档与 skills
 

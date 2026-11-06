@@ -4,14 +4,14 @@ version = 4
 
 [[package]]
 name = "escope-agent"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "escope-protocol",
 ]
 
 [[package]]
 name = "escope-c-api"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "escope-agent",
  "escope-protocol",
@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "escope-protocol"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "minicbor",
 ]

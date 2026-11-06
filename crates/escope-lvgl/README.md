@@ -6,11 +6,11 @@ The default `no_std` crate provides `TreeSource`, `UiBridge` and a bounded `Node
 
 ```toml
 [dependencies]
-escope-lvgl = "0.3.0"
+escope-lvgl = "0.4.0"
 ```
 
-The optional `native` feature uses the `rs_lvgl_sys` 0.5.0 provider shared by
-`rs_lvgl` / `rs_lvgl_ui` 0.5.0 to access the application's LVGL instance. The
+The optional `native` feature uses the `rs_lvgl_sys` 0.6.0 provider shared by
+`rs_lvgl` / `rs_lvgl_ui` 0.6.0 to access the application's LVGL instance. The
 application must use the same provider and compatible configuration; do not link
 a second LVGL copy. A C compiler and libclang are required by the native bindings.
 Display capture and input remain platform integration responsibilities.
