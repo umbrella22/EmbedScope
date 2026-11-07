@@ -183,7 +183,7 @@ fn renamed_views_keep_native_kinds_and_respond_to_pointer_input() {
                 );
             }
             println!(
-                "NATIVE_UI_0_6_OK nodes={} changed_pixels={changed_pixels}",
+                "NATIVE_UI_0_7_OK nodes={} changed_pixels={changed_pixels}",
                 after.len()
             );
         }

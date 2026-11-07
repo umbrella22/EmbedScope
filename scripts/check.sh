@@ -9,7 +9,7 @@ cargo test --workspace --locked
 cargo test -p escope-lvgl --features native --locked -- --test-threads=1
 cargo test --manifest-path examples/rs-lvgl-ui/Cargo.toml --target-dir target --locked -- --test-threads=1
 cargo test --manifest-path examples/rs-lvgl-ui/Cargo.toml --target-dir target --features composition --locked -- --test-threads=1
-cargo test --manifest-path examples/rs-lvgl-ui/Cargo.toml --target-dir target --features api-0-6 --locked -- --test-threads=1
+cargo test --manifest-path examples/rs-lvgl-ui/Cargo.toml --target-dir target --features api-0-7 --locked -- --test-threads=1
 python3 scripts/check-lvgl-config.py
 cargo check -p escope-protocol -p escope-agent -p escope-lvgl -p escope-c-api --target riscv32imafc-unknown-none-elf --locked
 cargo build -p escope-cli --locked

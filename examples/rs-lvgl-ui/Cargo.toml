@@ -8,10 +8,10 @@ publish = false
 
 [features]
 composition = ["rs_lvgl_ui/components", "rs_lvgl_ui/widget-slider", "rs_lvgl_ui/widget-switch"]
-api-0-6 = ["composition", "rs_lvgl_ui/widget-bar", "rs_lvgl_ui/widget-msgbox", "rs_lvgl_ui/widget-animimage"]
+api-0-7 = ["composition", "rs_lvgl_ui/widget-bar", "rs_lvgl_ui/widget-msgbox", "rs_lvgl_ui/widget-animimage", "rs_lvgl_ui/widget-chart", "rs_lvgl_ui/widget-textarea", "rs_lvgl_ui/widget-arc"]
 
 [dependencies]
 escope-lvgl = { path = "../../crates/escope-lvgl", features = ["native"] }
 escope-protocol = { path = "../../crates/escope-protocol" }
-rs_lvgl = { version = "=0.6.0", default-features = false, features = ["alloc", "unsafe_no_autoinit"] }
-rs_lvgl_ui = { version = "=0.6.0", default-features = false, features = ["alloc", "no-autoinit"] }
+rs_lvgl = { version = "=0.7.0", default-features = false, features = ["alloc", "unsafe_no_autoinit"] }
+rs_lvgl_ui = { version = "=0.7.0", default-features = false, features = ["alloc", "no-autoinit"] }

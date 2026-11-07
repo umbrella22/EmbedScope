@@ -6,11 +6,11 @@ The default `no_std` crate provides `TreeSource`, `UiBridge` and a bounded `Node
 
 ```toml
 [dependencies]
-escope-lvgl = "0.4.0"
+escope-lvgl = "0.5.0"
 ```
 
-The optional `native` feature uses the `rs_lvgl_sys` 0.6.0 provider shared by
-`rs_lvgl` / `rs_lvgl_ui` 0.6.0 to access the application's LVGL instance. The
+The optional `native` feature uses the `rs_lvgl_sys` 0.7.0 provider shared by
+`rs_lvgl` / `rs_lvgl_ui` 0.7.0 to access the application's LVGL instance. The
 application must use the same provider and compatible configuration; do not link
 a second LVGL copy. A C compiler and libclang are required by the native bindings.
 Display capture and input remain platform integration responsibilities.
@@ -20,6 +20,12 @@ and `image`. Plain objects using flex or grid report `row`, `column` or `grid`;
 other objects report `lv_obj`. Classification follows the application's effective
 LVGL configuration and does not enable additional widgets. A button with its own
 flex layout remains a `button`.
+
+The 0.7 UI `range_slider` still reports `slider`; `chart(ChartSpec)` reports one
+`chart`. A `custom(widget, props)` subtree reports the LVGL classes the widget
+creates, such as `arc`. View keys, chart series IDs and custom Props do not add
+virtual nodes or replace the session/revision-scoped node IDs. Flex wrap/reverse
+changes final geometry while preserving the native child order.
 
 The tree includes native host objects and widget internals. It does not recover
 Rust function names, component boundaries or `View` keys. Names remain empty;

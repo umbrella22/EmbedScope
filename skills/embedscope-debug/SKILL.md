@@ -9,7 +9,7 @@ description: 使用 EmbedScope 的 escope CLI 或主机 SDK 调试已接入 Agen
 
 ## 工具与连接
 
-- 优先使用用户提供的 `escope`、设备路径和工程位置。缺少命令时，从 [GitHub Releases](https://github.com/umbrella22/EmbedScope/releases/latest) 下载匹配平台/架构的 CLI ZIP，解压后直接执行；将目录加入 PATH 后可在任意位置使用 `escope`。已有 Rust 环境时可选择 `cargo install escope-cli --version '=0.4.0' --locked`。开发源码时在实际 checkout 执行 `cargo build -p escope-cli`。
+- 优先使用用户提供的 `escope`、设备路径和工程位置。缺少命令时，从 [GitHub Releases](https://github.com/umbrella22/EmbedScope/releases/latest) 下载匹配平台/架构的 CLI ZIP，解压后直接执行；将目录加入 PATH 后可在任意位置使用 `escope`。已有 Rust 环境时可选择 `cargo install escope-cli --version '=0.5.0' --locked`。开发源码时在实际 checkout 执行 `cargo build -p escope-cli`。
 - `escope devices` 只枚举串口；多个端口时结合用户提供的设备身份选择。TCP 使用 `--device tcp://host:port`，串口使用 `--device /dev/...`。串口被占用时处理当前占用来源，不自动终止其他应用。
 - 连接后先运行 `escope --device ENDPOINT --json info`，保存设备 build_id、boot_id、session 与 capabilities。软件参考设备的 model 为 `software / synthetic`，其指标和像素不能证明真实板端行为。
 - 读取 [命令与结果合同](references/commands.md) 选择实际支持的能力。CLI 与固件版本不一致时以实际 `--help`、hello 和源码定义为准。
@@ -21,6 +21,8 @@ description: 使用 EmbedScope 的 escope CLI 或主机 SDK 调试已接入 Agen
 已有明确问题时，按相关能力采集：日志用有限 `--count` 或受控 follow；卡顿/内存用 metrics；布局/交互用树、截图与用户授权的输入。需要完整现场时使用 `diagnose --output NEW_DIRECTORY --logs 8`，检查 report.json 的 complete、issues 和数据来源。
 
 输入复现前保存当前 build/session 与 UI revision，复现后重新读取树和显示。节点 ID 需要与 session/revision 一起解释，断线后不能沿用旧节点。操作录制、任意 shell、文件传输、OTA、ELF 符号解析目前没有可用命令。
+
+原生树按最终 LVGL 对象显示类型：双端滑块仍为 `slider`，图表为一个 `chart`，自定义控件按实际原生类显示，例如 `arc`。View key、chart series ID、Props 和端点值不作为额外树节点；文本编辑器内部的 label 可能可见。Flex wrap/reverse 改变坐标和尺寸时，结合当前截图与新 revision 判断，不把描述顺序当作屏幕排列。语义名称和业务字段取决于应用的 `TreeSource`。
 
 记录 device dropped、truncated 与主机 host_log_gap。日志无输出可能是过滤、缺少日志、能力未启用、传输占用或连接故障；先收集对应证据，不把缺少日志推断为设备正常。缺测指标是 null，不当成 0。
 

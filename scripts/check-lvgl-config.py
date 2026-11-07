@@ -27,8 +27,8 @@ provider = next(p for p in metadata["packages"] if p["name"] == "rs_lvgl_sys")
 native = Path(provider["manifest_path"]).parent
 base = native / "vendor" / "include-9.6" / "lv_conf.h"
 widgets = re.findall(r'widget\(\s*"[^"]+"\s*,\s*"([^"]+)"', (native / "build.rs").read_text())
-if not widgets or provider["version"] != "0.6.0":
-    raise RuntimeError("expected the inspected rs_lvgl_sys 0.6.0 configuration contract")
+if not widgets or provider["version"] != "0.7.0":
+    raise RuntimeError("expected the inspected rs_lvgl_sys 0.7.0 configuration contract")
 
 consumer = WORK / "consumer"
 (consumer / "src").mkdir(parents=True)
@@ -46,7 +46,7 @@ flex = []
 
 [dependencies]
 escope-lvgl = {{ path = {json.dumps(str(ROOT / 'crates/escope-lvgl'))}, features = ["native"] }}
-rs_lvgl_sys = "=0.6.0"
+rs_lvgl_sys = "=0.7.0"
 """)
 (consumer / "src" / "main.rs").write_text("""use core::ptr::NonNull;
 use escope_lvgl::{native::NativeTree, TreeSource};
