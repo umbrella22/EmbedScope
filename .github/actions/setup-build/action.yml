@@ -3,7 +3,7 @@ description: Install pinned Rust, Python, native libraries and Cargo cache
 inputs:
   toolchain:
     description: Rust toolchain version
-    default: '1.99.1'
+    default: 'stable'
   targets:
     description: Additional Rust compilation targets
     default: ''
