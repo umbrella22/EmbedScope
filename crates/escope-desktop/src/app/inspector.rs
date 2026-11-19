@@ -208,7 +208,9 @@ impl Inspector {
             .iter()
             .find(|node| Some(node.id) == self.selected)
         {
-            object_properties(ui, node, p, &self.i18n);
+            object_identity(ui, node, p, &self.i18n);
+            self.action_evidence(ui, node, p);
+            object_details(ui, node, p, &self.i18n);
         } else {
             ui.add_space(18.0);
             theme::empty(
@@ -260,6 +262,44 @@ impl Inspector {
         .clicked()
         {
             self.view = View::Metrics;
+        }
+    }
+
+    fn action_evidence(&self, ui: &mut egui::Ui, node: &UiNode, p: Palette) {
+        let (Some(session), Some(key)) = (&self.hello, evidence::control_key(node)) else {
+            return;
+        };
+        if evidence::unique_control(&self.nodes, key).is_none() {
+            return;
+        }
+        use evidence::ResultKind;
+        let last = self
+            .logs
+            .iter()
+            .rev()
+            .filter_map(|log| evidence::Evidence::from_log(log, session.session))
+            .find(|event| event.control == key);
+        ui.add_space(18.0);
+        theme::section(ui, tr!(self.i18n, "action-evidence"));
+        let (message, color) = match last.as_ref().map(|event| event.result) {
+            Some(ResultKind::InputUnobserved) => {
+                (tr!(self.i18n, "action-input-unobserved"), p.warning)
+            }
+            Some(ResultKind::Rejected) => (tr!(self.i18n, "action-rejected"), p.warning),
+            Some(ResultKind::Unchanged) => (tr!(self.i18n, "action-unchanged"), p.muted),
+            Some(ResultKind::PreviewUnconfirmed) => {
+                (tr!(self.i18n, "action-preview-unconfirmed"), p.warning)
+            }
+            Some(ResultKind::Presented) => (tr!(self.i18n, "action-presented"), p.accent),
+            None => (tr!(self.i18n, "action-no-evidence"), p.muted),
+        };
+        ui.add(egui::Label::new(RichText::new(message).color(color)).wrap());
+        if let Some(frame) = last.and_then(|event| event.frame) {
+            ui.label(
+                RichText::new(tr!(self.i18n, "frame-number", id = frame.to_string()))
+                    .monospace()
+                    .small(),
+            );
         }
     }
 
@@ -398,10 +438,9 @@ impl Inspector {
                 .interact_pointer_pos()
                 .and_then(|pos| display_point(response.rect, source, pos))
             {
+                self.selected = node_at(&self.nodes, x, y);
                 if self.inject {
                     self.send(Command::Tap(x, y));
-                } else {
-                    self.selected = node_at(&self.nodes, x, y);
                 }
             }
         }
@@ -526,7 +565,7 @@ impl Inspector {
     }
 }
 
-fn object_properties(ui: &mut egui::Ui, node: &UiNode, p: Palette, i18n: &I18n) {
+fn object_identity(ui: &mut egui::Ui, node: &UiNode, p: Palette, i18n: &I18n) {
     ui.horizontal(|ui| {
         theme::badge(ui, format!("#{}", node.id), p.accent);
         ui.label(
@@ -539,6 +578,9 @@ fn object_properties(ui: &mut egui::Ui, node: &UiNode, p: Palette, i18n: &I18n) 
     if !node.name.is_empty() {
         ui.add(egui::Label::new(&node.name).wrap());
     }
+}
+
+fn object_details(ui: &mut egui::Ui, node: &UiNode, p: Palette, i18n: &I18n) {
     ui.add_space(22.0);
     theme::section(ui, tr!(i18n, "layout"));
     let width = ui.available_width() - 24.0;

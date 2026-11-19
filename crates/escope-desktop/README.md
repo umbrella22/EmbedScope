@@ -38,6 +38,29 @@ area. Layout regressions in `src/app/tests/layout.rs` cover translated controls,
 menu insets, full-row pointer selection and long object IDs; capture geometry
 tests also verify that export/status labels stay inside their clips.
 
+## Action evidence
+
+The selected object's properties show the last application observation when
+its tree node has a unique `action:<key>` name. The key is a public identifier
+of at most 48 lowercase ASCII letters, digits, dots, hyphens or underscores.
+Applications emit a log to `escope.ui.evidence.v1`, for example:
+
+```json
+{"control":"settings.brightness","result":"presented","frame":42}
+```
+
+`presented` requires a nonzero completed frame ID. `input-unobserved`,
+`rejected`, `unchanged`, and `preview-unconfirmed` use `"frame":null`.
+The panel ignores truncated and other-session logs. No input values are needed.
+Tree revisions can recycle native IDs; only a unique tagged key with the same
+kind can retain selection across revisions. Untagged providers are unaffected.
+
+An old observation can remain visible until a new one arrives. A missing
+record does not explain a failure, and an input acknowledgement is not evidence
+of a business or display update. The frame displayed in Inspector can be older
+than a later log; a refresh obtains a separate capture. A captured frame does
+not certify physical panel output.
+
 ## Language selection
 
 The globe menu offers **Follow system**, **English**, and **简体中文**. System mode matches the first supported language in the operating system's preference list and falls back to English. Manual selection overrides the system language. Switching language changes interface copy and documentation links while preserving the connection, node selection, capture, filters and background export.

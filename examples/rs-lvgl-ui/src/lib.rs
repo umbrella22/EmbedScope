@@ -1,8 +1,8 @@
 //! Native inspection contract with the published rs_lvgl_ui API.
 
-#[cfg(all(test, feature = "api-0-7"))]
-mod api_0_7;
-#[cfg(all(test, feature = "api-0-7"))]
+#[cfg(all(test, feature = "api-0-8"))]
+mod api_0_8;
+#[cfg(all(test, feature = "api-0-8"))]
 mod capability_depth;
 #[cfg(all(test, feature = "composition"))]
 mod composition;

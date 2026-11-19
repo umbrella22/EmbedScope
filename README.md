@@ -48,7 +48,9 @@ escope -d tcp://127.0.0.1:9337 diagnose --output diagnosis --logs 8
 
 Rust 固件依赖 `escope-agent` 和 `escope-protocol`，实现 `Backend`，将传输字节交给有界帧解码器。应用提供任务调度、HAL、显示与输入，断线时调用 `Agent::reset` 释放会话资源。`escope-lvgl` 提供 UI 线程桥和可选原生树适配器，适配器与应用使用同一 LVGL provider、ABI 和配置。
 
-C/C++ 固件从 Release 下载 C SDK ZIP，使用配套头文件和包装工程，按目标 triple、CPU/ABI、panic 策略和链接配置构建静态库。头文件与 SDK 使用同一发布版本；设备协议和目标 ABI 分别具有兼容性要求。具体步骤见 [C/C++ 接入](https://umbrella22.github.io/EmbedScope_website/integration/c)。
+`escope-lvgl 0.6/native` 与 rs_lvgl 0.8 共享 `rs_lvgl_sys` 0.8。仍使用 rs_lvgl 0.7 的应用可选用 `escope-lvgl 0.5/native`。应用也可以使用默认的无 LVGL 依赖模式并提供自己的 `TreeSource`。参见 [LVGL 适配器](crates/escope-lvgl/README.md)。
+
+C/C++ 固件使用配套 C SDK 头文件与包装工程，按目标 triple、CPU/ABI、panic 策略和链接配置构建静态库。[独立 C/LVGL 示例](examples/c-lvgl/README.md) 展示原有 C 应用如何导出真实控件树，不使用 Rust LVGL provider。
 
 团子 OS 通过默认关闭的 `embedscope` feature 控制诊断功能。开发与问题复现使用 `cargo fw --features embedscope`，正式交付使用 `cargo fw`。诊断通过第二路 USB CDC 提供，连接时选择实际诊断接口并启用 DTR。完整说明见[团子 OS 接入](https://umbrella22.github.io/EmbedScope_website/integration/dango)。
 
@@ -57,7 +59,7 @@ C/C++ 固件从 Release 下载 C SDK ZIP，使用配套头文件和包装工程�
 已有 Rust 环境时，也可从 crates.io 安装 CLI：
 
 ```sh
-cargo install escope-cli --version '=0.5.0' --locked
+cargo install escope-cli --version '=0.6.0' --locked
 ```
 
 CLI 与设备侧库最低需要 Rust 1.88；Inspector 使用 eframe/egui 0.37，最低需要 Rust 1.95。平台构建依赖见[构建与测试](https://umbrella22.github.io/EmbedScope_website/development/testing)。
@@ -68,7 +70,7 @@ cargo run -p escope-desktop -- tcp://127.0.0.1:9337
 bash scripts/check.sh
 ```
 
-`check.sh` 检查 workspace、真实 LVGL 内存显示、`rs_lvgl_ui` 0.7 消费者、裁剪后的 LVGL 配置、RISC-V `no_std`、CLI 独立进程和 C harness。桌面源码结构与语言扩展见[桌面开发说明](crates/escope-desktop/README.md)，分发与发布流程见[发布说明](RELEASING.md)。
+`check.sh` 检查 workspace、真实 LVGL 内存显示、`rs_lvgl_ui` 0.8 消费者、裁剪后的 LVGL 配置、RISC-V `no_std`、CLI 独立进程和 C harness。[C/LVGL 示例](examples/c-lvgl/README.md) 有单独的验收入口。桌面源码结构与语言扩展见[桌面开发说明](crates/escope-desktop/README.md)，分发与发布流程见[发布说明](RELEASING.md)。
 
 ## 文档与 skills
 

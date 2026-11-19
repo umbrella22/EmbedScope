@@ -15,6 +15,7 @@ use std::{
 
 mod chrome;
 mod diagnostics;
+mod evidence;
 mod inspector;
 #[cfg(test)]
 mod tests;
@@ -180,17 +181,8 @@ impl Inspector {
                     self.hello = Some(hello);
                 }
                 Update::Snapshot(nodes, metrics, capture) => {
-                    if self.selected.is_some_and(|id| {
-                        !nodes.iter().any(|n| {
-                            n.id == id
-                                && self
-                                    .nodes
-                                    .iter()
-                                    .any(|old| old.id == id && old.revision == n.revision)
-                        })
-                    }) {
-                        self.selected = None;
-                    }
+                    self.selected =
+                        evidence::selection_after_refresh(&self.nodes, &nodes, self.selected);
                     self.depths = escope_host::tree_depths(&nodes).unwrap_or_default();
                     self.tree_order = tree::preorder(&nodes);
                     self.nodes = nodes;

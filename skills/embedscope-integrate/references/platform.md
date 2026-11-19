@@ -18,10 +18,11 @@ Agent 自带 Hello/Info/LogsSubscribe/Unsubscribe 与 LOGS 队列。系统 handl
 
 日志 FIFO 16项，target/message 48/192 UTF-8字节，溢出丢新记录并报告，截断有 truncated。平台任务中处理 push_log，不在中断里并发调用同一Agent。
 
-`UiBridge::tree(payload, out)` 使用 `TreeSource::{revision, read_node}`。EmbedScope 0.5.0 的 `NativeTree<N>` 直接依赖 `rs_lvgl_sys` 0.7.0，与应用的 `rs_lvgl` / `rs_lvgl_ui` 0.7.0 共用唯一 provider；默认 `TreeSource` 不依赖 LVGL。原生兼容版本线如下，应用与适配器需要统一升级依赖和锁文件：
+`UiBridge::tree(payload, out)` 使用 `TreeSource::{revision, read_node}`。默认 `TreeSource` 不依赖 LVGL。原生版本线如下；启用 `native` 的应用和适配器需要统一 provider 的版本、来源及配置：
 
 | EmbedScope SDK | rs_lvgl provider |
 | --- | --- |
+| 0.6.x | 0.8.x |
 | 0.5.x | 0.7.x |
 | 0.4.x | 0.6.x |
 | 0.3.x | 0.5.x |
@@ -46,11 +47,11 @@ root/线程有效性是 unsafe 构造合同。显示/输入由平台独立提供
 
 ES_OK/ES_BUSY 等为本地 ABI 返回码，ES_STATUS_* 为远程操作状态，不混用。Callback不得保留借用指针、越界写或unwind。Info UTF-8容量name64/model64/firmware32/build_id64，按header合同返回。poll只在TX空闲时转入日志。
 
-真实C示例：examples/c，验证脚本 bash scripts/check-c-api.sh；它用std主机wrapper提供运行时。固件要提供目标panic handler和链接，不从该示例推断任意MCU工具链已经验收。
+`examples/c` 使用 std 主机 wrapper 验证 ABI，入口为 `bash scripts/check-c-api.sh`。`examples/c-lvgl` 使用自己构建的 C LVGL，通过 `bash scripts/check-c-lvgl.sh /path/to/lvgl-9.6-source` 验证原生树与日志，不选择 Rust LVGL provider。固件仍需目标 panic handler 和链接配置。
 
 ## 团子 OS 的现有适配
 
-先检查目标 checkout 是否包含 `crates/os/src/embedscope/` 与 `embedscope` feature。已接入版本复用这些模块，不重复引入 Agent、USB 接口或 LVGL 实例。官方 v0.4.0 发行固件没有开启诊断；不能把发行版控制台当作 EmbedScope 端口。
+先检查目标 checkout 是否包含 `firmware/os/src/embedscope/` 与 `embedscope` feature。已接入版本复用这些模块，不重复引入 Agent、USB 接口或 LVGL 实例。普通控制台不是诊断端口；用镜像构建配置和 USB 枚举结果确认。
 
 - `boot/mod.rs::usb_task` 和 `embedscope/transport.rs`：保留原日志/应用/OTA CDC，第二路 CDC 传输二进制帧。主机需要 DTR，断线 epoch 丢弃旧请求、响应并重置会话。
 - `console/transport/logging.rs` 和 `embedscope/logs.rs`：格式化前 fan-out，有界上游队列的丢失量通过 Agent::record_dropped_logs 合并。避免只统计 Agent 内部 FIFO。
@@ -59,13 +60,13 @@ ES_OK/ES_BUSY 等为本地 ABI 返回码，ES_STATUS_* 为远程操作状态，�
 - `services/input/touch.rs::INPUT`：合成按压/定时释放进入统一系统输入队列，reset 释放未完成输入。
 - `platform/runtime/crashlog.rs` 和 `panic_record.rs`：RTC 摘要只有在完整 build marker 匹配时才接受构建/启动元数据，历史 panic 可保留未知身份。
 
-固件使用同一 LVGL 9.6 provider 与 rs_lvgl/rs_lvgl_ui 0.3.1。可选 SDK 依赖来自 crates.io，`Cargo.lock` 记录版本/checksum；构建为 `cargo build -p os --bin os-fw --release --target riscv32imafc-unknown-none-elf --features firmware,embedscope`。C 编译器/libclang 路径仍按目标工程配置。
+固件以应用 TreeSource 读取 rs_lvgl 0.8 的同一个 LVGL 9.6 实例；可选 EmbedScope 0.2 SDK 来自 crates.io，`Cargo.lock` 记录版本和 checksum。源码构建为 `cargo fw --locked --features embedscope`。编译器路径按目标工程配置；`cargo fw-run` 会烧录，不能用于构建检查。
 
 Agent及大缓冲在PSRAM初始化后创建；开启诊断时服务线程栈为32KiB，关闭时仍为16KiB。目标验证应检查链接栈余量、实际RTOS任务栈和内部heap，不能只依据主线程链接成功判断任务栈足够。指标最低水位缺测返回null。物理验证记录与设备恢复状态见目标工程和EmbedScope当前执行台账。
 
 ## rs_lvgl 的原生参考接入
 
-rs_lvgl 仓库的 `examples/embedscope/` 是独立应用；先检查其 Cargo.toml 与锁文件选择的版本。该示例当前固定 registry rs_lvgl/rs_lvgl_ui 0.3.1 与 EmbedScope 0.1.0，属于上表的 0.1.x 接入。升级到 EmbedScope 0.5.x 时同时升级应用到 rs_lvgl/rs_lvgl_ui 0.7.x，保留单一 native provider。它运行真实 LVGL 9.6 的 320×240 内存显示，没有 SDL 窗口；不能当作物理显示验收。
+rs_lvgl 仓库的 `examples/embedscope/` 是独立应用，使用 registry rs_lvgl 0.8 和可选 EmbedScope SDK。应用的 TreeSource 提供语义名称和可见文本。它运行真实 LVGL 9.6 的 320×240 内存显示，没有 SDL 窗口；不证明物理显示行为。
 
 在该仓库根目录：
 
@@ -74,11 +75,11 @@ cargo run --manifest-path examples/embedscope/Cargo.toml --features embedscope
 cargo run --manifest-path examples/embedscope/Cargo.toml --release --features embedscope
 cargo build --manifest-path examples/embedscope/Cargo.toml --release
 cargo tree --manifest-path examples/embedscope/Cargo.toml --edges normal,build
-cargo test --manifest-path examples/embedscope/Cargo.toml --features embedscope -- --test-threads=1
+bash scripts/check-embedscope-example.sh
 ```
 
 前两条启用诊断，默认端口 `tcp://127.0.0.1:9338`，只允许 loopback、一个连接。第三条关闭诊断，第四条应没有 escope-* 正常/构建依赖；dev-dependencies 不属于出货产物。不能把应用的 embedscope feature 写成 rs_lvgl_ui 的库 feature。
 
-实现由 UI-loop 轮询非阻塞 TCP/Agent、NativeTree<128>、真实 RGB888 flush 镜像和原生 Pointer。捕获拥有固定像素，End/reset 释放；输入配对，断线提前 release 已接受的 tap（适配短连接 CLI），显式 Cancel 抑制该 click。该示例固定的 SDK 0.1.0 输出 `kind=lv_obj`、`name` 为空；SDK 0.5.0 的类型分类见上文，语义文本仍由自定义 `TreeSource` 提供。内存缺测 null，CRASH 未声明。缓冲、listener、sink、input 均受同一个 feature 控制。
+UI loop 轮询非阻塞 TCP/Agent，通过应用的 TreeSource 发布明确的公共角色和原生几何，并维护 RGB888 flush 镜像。捕获拥有固定像素，End/reset 释放；断线提前 release 已接受的 tap，显式 Cancel 抑制待处理修改。滑块用 `escope.ui.evidence.v1` 区分输入、应用状态与画面结果，成功依赖预览区域在较新完成帧里的像素。内存缺测 null，CRASH 未声明。缓冲、listener、sink、input 受同一个 feature 控制。
 
 复制到板端时复用现有 executor、最终显示与输入仲裁，不把主机 std/TCP 服务强塞到 no_std 库。混用本地 path 与 registry rs_lvgl 可能产生重复 links=lvgl；统一整个 provider 来源，或去掉 escope-lvgl/native 并实现应用 TreeSource。参考 [rs_lvgl 调试指南](https://umbrella22.github.io/rs_lvgl_website/guide/embedscope.html)。

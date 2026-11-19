@@ -1,6 +1,58 @@
 use super::*;
 
 #[test]
+fn selected_action_evidence_is_visible_with_the_log_drawer_open() {
+    for locale in LOCALES {
+        let (mut app, sender, _) = fixture();
+        app.i18n = I18n::new(Some(locale.id), []);
+        let ctx = egui::Context::default();
+        crate::fonts::install_system_cjk(&ctx);
+        theme::apply(&ctx, true);
+        connect(&sender, capability::UI_TREE | capability::LOGS);
+        let mut slider = node(1);
+        slider.kind = "slider".into();
+        slider.name = "action:settings.brightness".into();
+        let slider_id = slider.id;
+        sender
+            .send(Update::Snapshot(vec![slider], None, None))
+            .unwrap();
+        sender
+            .send(Update::Log(LogRecord {
+                session: 1,
+                seq: 1,
+                timestamp_ms: 0,
+                level: 3,
+                target: "escope.ui.evidence.v1".into(),
+                message: r#"{"control":"settings.brightness","result":"presented","frame":7}"#
+                    .into(),
+                dropped: 0,
+                truncated: false,
+            }))
+            .unwrap();
+        let size = egui::vec2(900.0, 620.0);
+        frame(&mut app, &ctx, size, vec![]);
+        app.selected = Some(slider_id);
+        assert!(app.show_logs);
+        frame(&mut app, &ctx, size, vec![]);
+        let output = frame(&mut app, &ctx, size, vec![]);
+        let texts = text_rects(&output);
+        for expected in [
+            tr!(app.i18n, "action-evidence"),
+            tr!(app.i18n, "action-presented"),
+            tr!(app.i18n, "frame-number", id = "7".to_owned()),
+        ] {
+            assert!(
+                texts.iter().any(|(text, rect, clip)| text == &expected
+                    && rect.is_positive()
+                    && clip.contains_rect(*rect)),
+                "{}: missing or clipped Inspector evidence {expected:?}",
+                locale.id,
+            );
+        }
+    }
+}
+
+#[test]
 fn long_object_ids_keep_their_own_column() {
     let (mut app, sender, _) = fixture();
     let ctx = egui::Context::default();

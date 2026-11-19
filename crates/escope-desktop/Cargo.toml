@@ -16,6 +16,8 @@ eframe.workspace = true
 fluent-bundle = "0.16.0"
 unic-langid = "0.9.6"
 sys-locale = "0.3.2"
+serde.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 fluent-syntax = "0.12.0"
